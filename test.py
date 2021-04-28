@@ -1,163 +1,114 @@
-import itertools
-import random
-import time
+import pairing
 
 
-class Tournoi:
-    NOMBRE_PARTICIPANTS_MAX = 8
+class Tournament:
+    MAX_PARTICIPANTS_AMOUNT = 8
 
-    def __init__(self, **kwargs):  # #TODO: Doit inclure un attribut rondes_max (présent dans le controlleur)
+    def __init__(self, **kwargs):  # TODO: Doit inclure un attribut max_round (présent dans le controlleur)
         self.participants = []
-        self.rondes = []
-        for nom, valeur in kwargs.items():
-            setattr(self, nom, valeur)
+        self.rounds = []
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
-    def ajouter_participant(self, joueur):
-        if len(self.participants) < self.NOMBRE_PARTICIPANTS_MAX:
-            self.participants.append(joueur)
+    def add_participant(self, player):
+        if len(self.participants) < self.MAX_PARTICIPANTS_AMOUNT:
+            self.participants.append(player)
         else:
-            raise TropDeParticipantsError
+            raise TooManyParticipantsError
 
-    def creer_une_ronde(self):
-        if len(self.rondes) < self.rondes_max:
-            self.rondes.append(Ronde(len(self.rondes)+1, self.joueurs))
+    def create_round(self):
+        if len(self.rounds) < self.max_round:
+            self.rounds.append(Round(len(self.rounds) + 1, self.joueurs))
         else:
-            raise TropDeRondesError
+            raise TooManyRoundsError
 
 
-class TropDeParticipantsError(Exception):
+class TooManyParticipantsError(Exception):
     pass
 
 
-class TropDeRondesError(Exception):
+class TooManyRoundsError(Exception):
     pass
 
 
-class Ronde:
-    def __init__(self, num_de_ronde, joueurs):
-        self.joueurs = joueurs
-        self.numero = num_de_ronde
-        self.matchs = []
+class Round:
+    def __init__(self, round_number, players):
+        self.players = players
+        self.number = round_number
+        self.games = []
 
-    def creer_matchs(self):
-        self.joueurs.sort(key=lambda joueur: joueur.classement)  # Le 1° est le plus fort, donc
+    def create_games(self):
+        self.players.sort(key=lambda player: player.ranking)  # Le 1° est le plus fort, donc
         # le tri ascendant marche bien.
-        ecart = len(self.joueurs) // 2
-        if self.numero == 1:
+        ecart = len(self.players) // 2
+        if self.number == 1:
             for i in range(ecart):
-                self.matchs.append(Match(self.joueurs[i], self.joueurs[i + ecart]))
+                self.games.append(Game(self.players[i], self.players[i + ecart]))
         else:
-            self.joueurs.sort(key=lambda joueur: joueur.points, reverse=True)  # #Le joueur avec le plus de points doit
+            self.players.sort(key=lambda joueur: joueur.points, reverse=True)  # Le joueur avec le plus de points doit
             # être le plus fort donc inversion.
+            for pair in make_pairs_unique(create_pairs(self.players)):
+                self.games.append(Game(pair[0], pair[1]))
 
 
-class Match:
-    def __init__(self, joueur_1, joueur_2):
-        self.joueur_1 = joueur_1
-        self.joueur_2 = joueur_2
+class Game:
+    def __init__(self, player_one, player_two):
+        self.joueur_1 = player_one
+        self.joueur_2 = player_two
 
 
-class Player:
-    def __init__(self, number):
+class Member:
+    def __init__(self, **kwargs):
+        pass
+
+
+class Player(Member):
+    def __init__(self, number, **kwargs):
+        super().__init__(**kwargs)
         # for name, value in kwargs.items():
         # setattr(self, name, value)
-        self.played_against = list()
-        self.name = f"joueur {number}"
+        self.people_played_against = dict()  # It will store the name of the player and the number of time he was faced
+        self.name = f"joueur {number}"  # Ca, ça sera viré. Pour le moment ça reste des fois que je veuille refaire des
+        # tests
         self.points = 0
 
+    def least_played_from(self, players):
+        """return the player who has been faced the least in a list"""
+        comparison_list = [(player, self.people_played_against.get(player, 0)) for player in players]
+        comparison_list.sort(key=lambda element: element[1])
+        return comparison_list[0][0]
+
+    def played_against(self, player):
+        """Changes the amount of time player has been faced by self"""
+        if player in self.people_played_against:
+            self.people_played_against[player] += 1
+        else:
+            self.people_played_against[player] = 1
+
     def has_played_against(self, player):
-        return player in self.played_against
+        """returns a boolean that described if self has faced player"""
+        return player in self.people_played_against
 
 
-def pairing(player_list):
-    pairs = first_pairing(player_list)
+def create_pairs(player_list):
+    """returns a dictionary that pairs every player in player_list with another player in accordance to swiss rounds
+    rules"""
+    pairs = pairing.first_pairing(player_list)
     if len(pairs) == len(player_list):
         return pairs
     else:
-        return pairing_fixing(player_list, pairs, (len(player_list)-len(pairs))//2)
+        return pairing.pairing_fixing(player_list, pairs, (len(player_list) - len(pairs)) // 2)
 
 
-def first_pairing(player_list):
-    pairs = dict()
-    for player_one in player_list:
-        if player_one in pairs:
-            continue
-        for player_two in player_list:
-            if player_one.has_played_against(player_two) or player_two in pairs or player_two is player_one:
-                continue
-            else:
-                pairs[player_one] = player_two
-                pairs[player_two] = player_one
-                break
-    return pairs
-
-def pairing_fixing(player_list, current_pairing, number_of_matches_not_done):
-    items_found = 0
-    items_to_pair = [player for player in player_list if player not in current_pairing]
-    for player in player_list.__reversed__():
-        if player in current_pairing and player not in items_to_pair:
-            items_to_pair.append(player)
-            items_to_pair.append(current_pairing[player])
-            items_found += 1
-        if items_found == number_of_matches_not_done:
-            break
-    all_pairings = [combination for combination in itertools.combinations(items_to_pair, 2)]
-    all_combinations_of_pairings = itertools.combinations(all_pairings, number_of_matches_not_done+1)
-    all_potential_combinations_of_pairings = [pairings for pairings in all_combinations_of_pairings]
-    all_valid_pairings = list(filter(match_allowed, all_potential_combinations_of_pairings))
-    if len(all_valid_pairings) == 0:
-        if number_of_matches_not_done >= len(player_list)//2:
-            return first_pairing(player_list) # TODO: Need to change that to a new function that pairs according to the number of times you played against someone. Peut-être en remplaçant le "in played_against"
-                                              #       par "<= minimum de fois qu'un match est répété.
-
-                                              # TODO: Une autre anomalie, il semble possible d'arriver ici SANS qu'il soit nécessairement impossible de faire un appariement. Ca ne se produit pas pour 4 rondes, mais ça se produit pour 7 rondes. Il faut vérifier mes conditions. :(
-        else:
-            return pairing_fixing(player_list, current_pairing, number_of_matches_not_done+1)
-    else:
-        final_pairing = all_valid_pairings[0]
-    for player_one, player_two in final_pairing:
-        current_pairing[player_one] = player_two
-        current_pairing[player_two] = player_one
-    return current_pairing
+def make_pairs_unique(pairs):
+    """transform pairs in a list of tuple that can be used to initialize match"""
+    unique_pairs = []
+    for key, value in pairs.items():
+        j = {key, value}
+        if j not in unique_pairs:
+            unique_pairs.append(tuple(j))
+    return unique_pairs
 
 
-def is_valid(pairings):
-    """determines if every tuple from a list of tuples has no intersection with every other tuple"""
-    for n in range(len(pairings)):
-        for m in range(n):
-            if set(pairings[n]) & set(pairings[m]) != set():
-                return False
-    return True
-
-
-def is_allowed(pairings):
-    """determines if every pair of players in a list of pair of players can play against each other"""
-    for player_1, player_2 in pairings:
-        if player_1.has_played_against(player_2):
-            return False
-    return True
-
-
-def match_allowed(pairings):
-    return is_valid(pairings) and is_allowed(pairings)
-
-
-def multiple_pairing(): # A virer ça, c'est uniquement pour du test
-    all_players = [Player(i) for i in range(8)]
-    for i in range(7):
-        k = pairing(all_players)
-        for player in k:
-            player.played_against.append(k[player])
-            player.points += random.randint(0,10)
-        all_players.sort(key=lambda player: player.points)
-    answer = []
-    return [player.played_against for player in all_players]
-
-
-if __name__ == "__main__": # A virer ça, c'est uniquement pour du test
-    for i in range(1000):
-        k = multiple_pairing()
-        for mini_list in k:
-            print(len(mini_list))
-        print("another one")
-    print("finished")
+if __name__ == "__main__":
+    pass
