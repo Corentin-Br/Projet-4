@@ -1,6 +1,6 @@
 """Implement all classes required to create and play a complete tournament"""
-import time
-import random
+from time import time
+from random import sample
 
 import pairing
 from exceptions import *
@@ -49,7 +49,7 @@ class Tournament:
     def create_round(self):
         """Create a round."""
         if len(self.rounds) == 0 or (len(self.rounds) <= self.max_round and self.rounds[-1].finished):
-            starting_time = time.time()
+            starting_time = time()
             self.rounds.append(Round(len(self.rounds) + 1, self.players, starting_time))
         elif not self.rounds[-1].finished:
             raise PreviousRoundNotFinishedError
@@ -94,14 +94,14 @@ class Round:
         for game in self.games:
             if not game.winner:
                 raise GameNotOverError(game)
-        self.ending_time = time.time()
+        self.ending_time = time()
         self.finished = True
 
 
 class Game:
     """Class representing a game between two players."""
     def __init__(self, players):
-        players_random = random.sample(players, k=2)
+        players_random = sample(players, k=2)
         self.white_player = players_random[0]
         self.black_player = players_random[1]
         self.name = f"{self.white_player.name} VS {self.black_player.name}"
