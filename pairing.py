@@ -1,10 +1,9 @@
-""""""
+"""Has several functions to pair players with the goal of following the swiss rounds rules."""
 import itertools
 
 
 def first_pairing(player_list):
-    """returns a dictionary that matches players starting from the one with the highest score. This may not yield all
-    matches we want due to non-predictive conditions on the matchmaking"""
+    """Return a dictionary that matches players that didn't play against each other starting from the highest score."""
     pairs = dict()
     for player_one in player_list:
         if player_one in pairs:
@@ -19,8 +18,7 @@ def first_pairing(player_list):
 
 
 def get_enough_players(player_list, current_pairing, number_of_matches_not_done):
-    """returns a list that has all players not in current_pairing and enough players from player_list, starting
-    from the end to play number_of_matches_not_done"""
+    """Return a list with enough players to play number_of_matches_not_done games."""
     items_found = 0
     players_to_pair = [player for player in player_list if player not in current_pairing]
     for player in player_list.__reversed__():
@@ -35,14 +33,25 @@ def get_enough_players(player_list, current_pairing, number_of_matches_not_done)
 
 
 def pair(player_one, player_two, current_pairing):
-    """add (player_one, player_two) and (player_two, player_one) in current_pairing items"""
+    """Return current_pairing with player_one and player_two added as key and value of each other."""
     current_pairing[player_one] = player_two
     current_pairing[player_two] = player_one
     return current_pairing
 
 
 def pairing_fixing(player_list, current_pairing, number_of_matches_not_done):
-    """"""
+    """Return a dictionary pairing all players with the player they haven't played against closest to their score.
+
+    The function will first attempt to find enough players (starting with the lowest score and their pair) to be able
+    to create games where no one has already played against their opponent. If they can't, they will slowly increase
+    the amount of players they will "depair".
+    If when taking all players, all combinations result in at least one player facing someone they already faced, the
+    players will be paired (starting with the highest score) with the player they faced the least (starting with the
+    highest score).
+    This implies that if the number of rounds is very high in comparison to the number of players, players with the
+    lowest scores may end up facing each other a lot.
+    """
+
     print("I have started fixing")
     players_to_pair = get_enough_players(player_list, current_pairing, number_of_matches_not_done)
     all_valid_pairings = get_all_valid_matchups(players_to_pair, number_of_matches_not_done)
@@ -59,8 +68,13 @@ def pairing_fixing(player_list, current_pairing, number_of_matches_not_done):
 
 
 def least_played_pairing(player_without_matches):
-    """pairs players from player_without_matches with the player they played the least. The players with the highest
-    score have priority"""
+    """Return a dictionary pairing all players with the player they have played the least against.
+
+    The function starts from the player with the highest score and will try to pair them with the player with the
+    highest score among those they have played the least again.
+    If the number of rounds is very high in comparison to the number of players, players with the
+    lowest scores may end up facing each other a lot.
+    """
     pairs = dict()
     for current_player in player_without_matches:
         if current_player in pairs:
@@ -73,7 +87,7 @@ def least_played_pairing(player_without_matches):
 
 
 def is_valid(pairings):
-    """determines if every tuple from pairings has no intersection with every other tuple from pairings"""
+    """Return True if no tuple has an intersection with any other tuple in pairings, return False otherwise."""
     for n in range(len(pairings)):
         for m in range(n):
             if set(pairings[n]) & set(pairings[m]) != set():
@@ -82,7 +96,7 @@ def is_valid(pairings):
 
 
 def is_allowed(pairings):
-    """determines if every pair of players in pairings can play against each other"""
+    """Return True if no player has played against their pair in pairings, return True otherwise."""
     for player_1, player_2 in pairings:
         if player_1.has_played_against(player_2):
             return False
@@ -94,10 +108,10 @@ def game_allowed(pairings):
 
 
 def get_all_valid_matchups(players_to_pair, number_of_matches_not_done, players_per_match=2, func=game_allowed):
-    """returns a list that has all possible combination of number_of_matches_not_done tuples of player_per_match
+    """Return a list with all possible combination of number_of_matches_not_done tuples of player_per_match
     element from players_to_pair. The list is filtered by func."""
     # First we get all possible combination (for example with (a,b,c,d) we'll get [(a,b), (a,c), (a,d), (b,c), (b,d),
-    # (c,d)] (or something equivalent for our purposes))
+    # (c,d)] (or something equivalent for our purpose))
     # Note that players_to_pair must NOT have repetitions for this to work correctly
     all_pairings = [combination for combination in itertools.combinations(players_to_pair, players_per_match)]
     # Then we get a list of combination of those combinations. With the example above, assuming we need to create 2
