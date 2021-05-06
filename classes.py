@@ -1,5 +1,6 @@
 """Implement all classes required to create and play a complete tournament"""
 from time import time
+from datetime import date
 from random import sample
 
 import pairing
@@ -8,12 +9,19 @@ from exceptions import *
 
 class Tournament:
     """Class representing a complete Tournament."""
+    all_tournaments = {}
 
-    def __init__(self, **kwargs):  # TODO: Doit inclure un attribut max_round (présent dans le controlleur)
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.place = ""
+        self.date = [date.fromtimestamp(time())]
+        self.max_round = 4
+        self.rounds = []
         self.participants = []
         self.players = []
-        self.rounds = []
         self.is_started = False
+        self.type = "bullet"
+        self.description = ""
         self.participant_amount = 8
         for name, value in kwargs.items():
             setattr(self, name, value)
@@ -42,6 +50,8 @@ class Tournament:
         """Generate the players and prevent adding more participants."""
         if len(self.participants) < self.participant_amount:
             raise NotEnoughPlayersError
+        elif self.is_started :
+            raise AlreadyStartedError
         else:
             self.players = [Player(member) for member in self.participants]
             self.is_started = True
@@ -61,6 +71,19 @@ class Tournament:
         """Return a list of participants sorted by score, to be used to display the result of the tournament."""
         self.players.sort(key=lambda player: player.points, reverse=True)
         return self.players
+
+    @classmethod
+    def initialize_tournaments(cls):
+        pass
+        # DB request
+        # cls.all_tournaments = request_result
+
+    @classmethod
+    def add_tournament(cls, tournament):
+        if not cls.all_tournaments():
+            cls.initialize_tournaments()
+        cls.all_tournaments[f"{tournament.name} {tournament.place}"] = tournament
+        pass
 
 
 class Round:
@@ -105,34 +128,62 @@ class Game:
         self.white_player = players_random[0]
         self.black_player = players_random[1]
         self.name = f"{self.white_player.name} VS {self.black_player.name}"
-        self.winner = []
+        self.score = "0-0"
 
-    def set_winner(self, winners):
-        """Create the result of the game."""  # TODO: I need to make sure the controller sends winners as an iterable.
-        self.winner = winners
+    def set_score(self, score):
+        """Create the result of the game."""
+        self.score = score
         self.give_points()
         self.white_player.played_against(self.black_player)
         self.black_player.played_against(self.white_player)
 
     def give_points(self):
         """Give the points to the players."""
-        for player in self.winner:
-            player.points += 1/len(self.winner)
+        score = self.score.split("-")
+        self.white_player.points += float(score[0])
+        self.black_player.points += float(score[1])
 
 
 class Member:
     """Represent a member of the chess club."""
+    all_members = {}
+
     def __init__(self, **kwargs):
+        self.surname = ""
+        self.name = ""
+        self.birthdate = 0
+        self.gender = ""
+        self.ranking = 0
+        self.discriminator = 0
         for name, value in kwargs.items():
             setattr(self, name, value)
+
+    @classmethod
+    def initialize_members(cls):
+        pass
+        # TODO: DB request
+        # cls.all_members = request_result
+
+    @classmethod
+    def add_member(cls, member):
+        if not cls.all_members:
+            cls.initialize_members()
+        # TODO: Find if a member shares the same name, surname, birthdate and gender
+        # if False, add the member to all_members
+        # if True, warn the user that the member may already exist and ask confirmation that it's a different person
+        # if it is indeed someone else, the discriminator attribute should be equal to the number of other people
+        # with the same name/surname/birthdate/gender already in the DB.
+
+    @classmethod
+    def save(cls):
+        pass
+        # save in the DB
 
 
 class Player(Member):
     """Represent a player in a tournament."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # for name, value in kwargs.items():
-        # setattr(self, name, value)
+    def __init__(self, member):
+        super().__init__(**member.__dict__)
         self.people_played_against = dict()  # It will store the name of the player and the number of time he was faced
         self.points = 0
 
@@ -172,7 +223,3 @@ def make_pairs_unique(pairs):
         if j not in unique_pairs:
             unique_pairs.append(tuple(j))
     return unique_pairs
-
-
-if __name__ == "__main__":
-    pass
