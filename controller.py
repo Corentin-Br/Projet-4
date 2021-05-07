@@ -6,37 +6,22 @@ from exceptions import *
 
 class GlobalController:
     def __init__(self):
-        self.data = {"members": [],
-                     "tournaments": []}
+        pass
 
-    def get_members(self):
-        """Load all members."""
-        if not classes.Member.all_members:
-            classes.Member.initialize_members()
-        self.data["members"] = classes.Member.all_members
-        return "Tous les membres ont été chargés!"
-
-    def get_tournaments(self):
-        """Load all tournaments."""
-        if not classes.Tournament.all_tournaments:
-            classes.Tournament.initialize_tournaments()
-        self.data["tournaments"] = classes.Tournament.all_tournaments
-        return "Tous les tournois ont été chargés!"
-
-    def create_tournament(self, name, **kwargs):
+    def create_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
-        new_tournament = classes.Tournament(name, **kwargs)
+        new_tournament = classes.Tournament(**kwargs)
         return "Tournoi créé!", self.create_tournament_controller(new_tournament)
 
     def create_tournament_controller(self, tournament):
         """Create a new controller for a tournament"""
-        new_controller = TournamentController(self.view, tournament)
+        new_controller = TournamentController(tournament)
         return new_controller
 
     def add_member(self, **kwargs):
         """Add a new member"""
         new_member = classes.Member(**kwargs)
-        classes.Member.add_member(new_member)
+        new_member.save() # TODO: Il faut vérifier que les membres ne soient pas dupliqués
         return "Ajout réussi!"  # In reality there is a need for a try/except above to deal with the
         # posibility of not being able to add the member. There's also a need to check with the user that the member
         # we're going to add is the correct one.
@@ -106,8 +91,7 @@ class GlobalController:
 
 
 class TournamentController:
-    def __init__(self, view_used, tournament):
-        self.view = view_used
+    def __init__(self, tournament):
         self.tournament = tournament
 
     def display_players(self, sort_key=None):

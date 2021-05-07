@@ -2,6 +2,7 @@
 from time import time
 from datetime import date
 from random import sample
+
 from tinydb import TinyDB, Query
 
 import pairing
@@ -76,6 +77,7 @@ class Tournament:
 
     @property
     def serialized(self):
+        """Return a serialized instance of a tournament"""
         serialized_participants = [participant.to_dict() for participant in self.participants]
         serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
         serialized_players = [player.to_dict(self.participants) for player in self.players]
@@ -86,6 +88,7 @@ class Tournament:
         return serialized_tournament
 
     def save(self):
+        """Add or update a tournament in the database"""
         db = TinyDB("db.json")
         tournament_tables = db.table("tournaments")
         tournament = Query()
@@ -127,6 +130,7 @@ class Round:
         self.finished = True
 
     def to_dict(self, players):
+        """Serialize an instance of a round"""
         serialized = {"number": self.number,
                       "starting_time": self.starting_time,
                       "name": self.name,
@@ -164,6 +168,7 @@ class Game:
         self.black_player.points += float(score[1])
 
     def to_dict(self, players):
+        """Serialize an instance of a game"""
         serialized = {"white_player_index": players.index(self.white_player),
                       "black_player_index": players.index(self.black_player),
                       "score": self.score}
@@ -182,10 +187,12 @@ class Member:
         self.discriminator = kwargs.get("discriminator", "")
 
     def to_dict(self):
+        """Serialize an instance of a member"""
         serialized_member = {name: value for name, value in self.__dict__.items()}
         return serialized_member
 
     def save(self):
+        """Add or update a member in the database"""
         db = TinyDB("db.json")
         member_tables = db.table("members")
         member = Query()
@@ -204,6 +211,7 @@ class Player:
         self.points = kwargs.get("people_played_against", 0)
 
     def to_dict(self, participants):
+        """Serialize an instance of a player"""
         serialized_player = {"member_index": participants.index(self.member),
                              "people_played_against_index": {participants.index(participant):
                                                              self.people_played_against[participant]
@@ -231,10 +239,15 @@ class Player:
 
 
 def unserialize_member(serialized):
+    """Create an instance of a member from a dictionary."""
     return Member(**serialized)
 
 
 def unserialize_player(serialized, participants):
+    """Create an instance of a player from a dictionary.
+
+    It should only be used when creating/loading an instance of a tournament. It also requires the list of participants
+    in the tournament."""
     serialized["member"] = participants[serialized["member_index"]]
     serialized["people_played_against"] = {participants[index]: serialized["people_played_against_index"][index]
                                            for index in serialized["people_played_against_index"]}
@@ -242,12 +255,20 @@ def unserialize_player(serialized, participants):
 
 
 def unserialize_game(serialized, players):
+    """Create an instance of a game from a dictionary.
+
+    It should only be used when creating/loading an instance of a tournament. It also requires the list of players
+    in the tournament."""
     serialized["white_player"] = players[serialized["white_player_index"]]
     serialized["black_player"] = players[serialized["black_player_index"]]
     return Game(**serialized)
 
 
 def unserialize_round(serialized, players):
+    """Create an instance of a round from a dictionary.
+
+    It should only be used when creating/loading an instance of a tournament. It also requires the list of players
+    in the tournament."""
     serialized["players"] = players
     for i in range(len(serialized["games"])):
         serialized["games"][i] = unserialize_game(serialized["games"][i], players)
@@ -255,12 +276,11 @@ def unserialize_round(serialized, players):
 
 
 def unserialize_tournament(serialized):
+    """Create an instance of a tournament"""
     for i in range(len(serialized["participants"])):
         serialized["participants"][i] = unserialize_member(serialized["participants"][i])
-
     for i in range(len(serialized["players"])):
         serialized["players"][i] = unserialize_player(serialized["players"][i], serialized["participants"])
-
     for i in range(len(serialized["rounds"])):
         serialized["rounds"][i] = unserialize_round(serialized["rounds"][i],  serialized["players"])
     return Tournament(**serialized)

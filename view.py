@@ -1,5 +1,5 @@
 """Implement a class that will manage interactions with the user"""
-
+import controller
 
 class View:
     def __init__(self, controller):
