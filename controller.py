@@ -5,29 +5,28 @@ from exceptions import *
 
 
 class GlobalController:
-    def __init__(self, view_used):
-        self.view = view_used
+    def __init__(self):
         self.data = {"members": [],
                      "tournaments": []}
 
     def get_members(self):
+        """Load all members."""
         if not classes.Member.all_members:
             classes.Member.initialize_members()
         self.data["members"] = classes.Member.all_members
-        self.view.display("Tous les membres ont été chargés!")
+        return "Tous les membres ont été chargés!"
 
     def get_tournaments(self):
-        """Load all tournaments"""
+        """Load all tournaments."""
         if not classes.Tournament.all_tournaments:
             classes.Tournament.initialize_tournaments()
         self.data["tournaments"] = classes.Tournament.all_tournaments
-        self.view.display("Tous les tournois ont été chargés!")
+        return "Tous les tournois ont été chargés!"
 
     def create_tournament(self, name, **kwargs):
         """Create a new tournament and return the controller that manages it"""
         new_tournament = classes.Tournament(name, **kwargs)
-        self.view.display("Tournoi créé!")
-        return self.create_tournament_controller(new_tournament)
+        return "Tournoi créé!", self.create_tournament_controller(new_tournament)
 
     def create_tournament_controller(self, tournament):
         """Create a new controller for a tournament"""
@@ -38,7 +37,7 @@ class GlobalController:
         """Add a new member"""
         new_member = classes.Member(**kwargs)
         classes.Member.add_member(new_member)
-        self.view.display("Ajout réussi!")  # In reality there is a need for a try/except above to deal with the
+        return "Ajout réussi!"  # In reality there is a need for a try/except above to deal with the
         # posibility of not being able to add the member. There's also a need to check with the user that the member
         # we're going to add is the correct one.
 
@@ -68,37 +67,42 @@ class GlobalController:
 
     def display_members(self, sort_key=None):
         """Display all the members"""
-        sorts = {None: None,
-                 "classement": lambda x: x.ranking,
-                 "alphabet": lambda x: x.name}
-        members = classes.Member.all_members.copy()
-        members.sort(key=sorts[sort_key])
+        members = classes.Member.all_members
+        if sort_key is not None:
+            members = sorted(members, key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "name"))
+        string_return = ""
         for i in range(len(members)):
             member = members[i]
-            self.view.display("   ".join([f"{i})",
-                                          member.surname,
-                                          member.name,
-                                          member.birthdate,
-                                          member.gender,
-                                          member.ranking]))
-            # self.view.display("\n")
-            # The comment above shouldn't be needed, since it's several print there should naturally be a line skipped
+            string_return += "   ".join([f"{i})",
+                                         member.surname,
+                                         member.name,
+                                         member.birthdate,
+                                         member.gender,
+                                         member.ranking])
+            string_return += "\n"
+        return string_return
 
     def display_tournaments(self):
         """Display all the tournaments"""
-        tournaments = classes.Tournament.all_tournaments.copy()
+        tournaments = classes.Tournament.all_tournaments
+        string_return = ""
         for i in range(len(tournaments)):
             tournament = tournaments[i]
-            self.view.display("   ".join([f"{i})",
-                                          tournament.name,
-                                          tournament.place,
-                                          "et ".join(tournament.date),
-                                          tournament.type,
-                                          tournament.description]))
+            string_return += "   ".join([f"{i})",
+                                         tournament.name,
+                                         tournament.place,
+                                         "et ".join(tournament.date),
+                                         tournament.type,
+                                         tournament.description])
+        return string_return
 
     def display_help(self):
         pass
         # Send various possible commands
+
+    def does(self, command, args, kwargs):
+        pass
+        # Find the method the user wants to use and run it.
 
 
 class TournamentController:
@@ -108,12 +112,10 @@ class TournamentController:
 
     def display_players(self, sort_key=None):
         """Display all the players in the tournament"""
-        sorts = {None: None,
-                 "classement": lambda x: -x.points,  # The ranking used here must be that of the tournament.
-                 # I use -x.points to have the best at the beginning.
-                 "alphabet": lambda x: x.name}
         players = self.tournament.players
-        players.sort(key=sorts[sort_key])
+        if sort_key is not None:
+            players = sorted(players, key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"))
+            # TODO : points donne ça à l'envers
         for i in range(len(players)):
             player = players[i]
             self.view.display("   ".join([f"{i})",
@@ -225,6 +227,10 @@ class TournamentController:
     def exit(self):
         pass
         # How to make it go back to the global controller in the main loop?
+
+    def does(self, command, args, kwargs):
+        pass
+        # Find the method the user wants to run.
 
 
 def is_valid_result(result):

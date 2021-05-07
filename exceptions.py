@@ -42,3 +42,8 @@ class NotInTournamentError(Exception):
     """Raised when trying to remove a player not already in the tournament."""
     def __init__(self, member):
         self.problem_member = member
+
+
+class AlreadyStartedError(Exception):
+    """Raised when trying to start a Tournament already started"""
+    pass

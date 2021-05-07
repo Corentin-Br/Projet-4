@@ -2,7 +2,8 @@
 
 
 class View:
-    def __init__(self):
+    def __init__(self, controller):
+        self.controller = controller
         pass
 
     def display(self, text):
