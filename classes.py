@@ -49,10 +49,10 @@ class Tournament:
         """Generate the players and prevent adding more participants."""
         if len(self.participants) < self.participant_amount:
             raise NotEnoughPlayersError
-        elif self.is_started :
+        elif self.is_started:
             raise AlreadyStartedError
         else:
-            self.players = [Player(member) for member in self.participants]
+            self.players = [Player(**{"member": member}) for member in self.participants]
             self.is_started = True
 
     def create_round(self):
@@ -72,14 +72,13 @@ class Tournament:
     @property
     def result(self):
         """Return a list of participants sorted by score, to be used to display the result of the tournament."""
-        self.players.sort(key=lambda player: player.points, reverse=True)
-        return self.players
+        return sorted(self.players, key=lambda player: player.points, reverse=True)
 
     @property
     def serialized(self):
-        serialized_participants = [participant.serialized for participant in self.participants]
-        serialized_rounds = [game_round.serialized for game_round in self.rounds]
-        serialized_players = [player.serialized for player in self.players]
+        serialized_participants = [participant.to_dict() for participant in self.participants]
+        serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
+        serialized_players = [player.to_dict(self.participants) for player in self.players]
         serialized_tournament = {name: value for name, value in self.__dict__.items()}
         serialized_tournament["participants"] = serialized_participants
         serialized_tournament["rounds"] = serialized_rounds
@@ -109,17 +108,15 @@ class Round:
 
     def create_games(self):
         """Create all games for the round."""
-        self.players.sort(key=lambda player: player.ranking)  # Le 1° est le plus fort, donc
-        # le tri ascendant marche bien.
-        ecart = len(self.players) // 2
+        players = sorted(self.players, key=lambda player: player.ranking)
+        ecart = len(players) // 2
         if self.number == 1:
             for i in range(ecart):
-                self.games.append(Game(**{"players":(self.players[i], self.players[i + ecart])}))
+                self.games.append(Game(**{"players": (players[i], players[i + ecart])}))
         else:
-            self.players.sort(key=lambda joueur: joueur.points, reverse=True)  # Le joueur avec le plus de points doit
-            # être le plus fort donc inversion.
-            for pair in make_pairs_unique(create_pairs(self.players)):
-                self.games.append(Game(**{"players":(pair[0], pair[1])}))
+            players = sorted(players, key=lambda joueur: joueur.points, reverse=True)
+            for pair in make_pairs_unique(create_pairs(players)):
+                self.games.append(Game(**{"players": (pair[0], pair[1])}))
 
     def finish(self):
         """Check that all games are over and get the time the round ended at."""
@@ -129,9 +126,14 @@ class Round:
         self.ending_time = time()
         self.finished = True
 
-    @property
-    def serialized(self):
-        pass
+    def to_dict(self, players):
+        serialized = {"number": self.number,
+                      "starting_time": self.starting_time,
+                      "name": self.name,
+                      "ending_time": self.ending_time,
+                      "finished": self.finished,
+                      "games": [game.to_dict(players) for game in self.games]}
+        return serialized
 
 
 class Game:
@@ -161,10 +163,15 @@ class Game:
         self.white_player.points += float(score[0])
         self.black_player.points += float(score[1])
 
+    def to_dict(self, players):
+        serialized = {"white_player_index": players.index(self.white_player),
+                      "black_player_index": players.index(self.black_player),
+                      "score": self.score}
+        return serialized
+
 
 class Member:
     """Represent a member of the chess club."""
-    all_members = {}
 
     def __init__(self, **kwargs):
         self.surname = kwargs.get("surname", "")
@@ -174,26 +181,19 @@ class Member:
         self.ranking = kwargs.get("ranking", "")
         self.discriminator = kwargs.get("discriminator", "")
 
-    @classmethod
-    def initialize_members(cls):
-        pass
-        # TODO: DB request
-        # cls.all_members = request_result
+    def to_dict(self):
+        serialized_member = {name: value for name, value in self.__dict__.items()}
+        return serialized_member
 
-    @classmethod
-    def add_member(cls, member):
-        if not cls.all_members:
-            cls.initialize_members()
-        # TODO: Find if a member shares the same name, surname, birthdate and gender
-        # if False, add the member to all_members
-        # if True, warn the user that the member may already exist and ask confirmation that it's a different person
-        # if it is indeed someone else, the discriminator attribute should be equal to the number of other people
-        # with the same name/surname/birthdate/gender already in the DB.
-
-    @classmethod
-    def save(cls):
-        pass
-        # save in the DB
+    def save(self):
+        db = TinyDB("db.json")
+        member_tables = db.table("members")
+        member = Query()
+        member_tables.upsert(self.to_dict(), (member.surname == self.surname and
+                                              member.name == self.name and
+                                              member.birthdate == self.birthdate and
+                                              member.gender == self.gender and
+                                              member.discriminator == self.discriminator))
 
 
 class Player:
@@ -203,40 +203,52 @@ class Player:
         self.people_played_against = kwargs.get("people_played_against", dict())
         self.points = kwargs.get("people_played_against", 0)
 
+    def to_dict(self, participants):
+        serialized_player = {"member_index": participants.index(self.member),
+                             "people_played_against_index": {participants.index(participant):
+                                                             self.people_played_against[participant]
+                                                             for participant in self.people_played_against},
+                             "points": self.points}
+        return serialized_player
+
     def least_played_from(self, players):
         """Return the player who has been faced the least in a list."""
-        comparison_list = [(player, self.people_played_against.get(player, 0)) for player in players]
+        comparison_list = [(player, self.people_played_against.get(player.member, 0)) for player in players]
         comparison_list.sort(key=lambda element: element[0].points, reverse=True)
         comparison_list.sort(key=lambda element: element[1])
         return comparison_list[0][0]
 
     def played_against(self, player):
         """Change the amount of time a player has been faced by another."""
-        if player in self.people_played_against:
-            self.people_played_against[player] += 1
+        if player.member in self.people_played_against:
+            self.people_played_against[player.member] += 1
         else:
-            self.people_played_against[player] = 1
+            self.people_played_against[player.member] = 1
 
     def has_played_against(self, player):
         """Return a boolean determining if two players have faced each other."""
-        return player in self.people_played_against
+        return player.member in self.people_played_against
 
 
 def unserialize_member(serialized):
     return Member(**serialized)
 
 
-def unserialize_player(serialized):
+def unserialize_player(serialized, participants):
+    serialized["member"] = participants[serialized["member_index"]]
+    serialized["people_played_against"] = {participants[index]: serialized["people_played_against_index"][index]
+                                           for index in serialized["people_played_against_index"]}
     return Player(**serialized)
 
 
 def unserialize_game(serialized, players):
-    self.white_player
+    serialized["white_player"] = players[serialized["white_player_index"]]
+    serialized["black_player"] = players[serialized["black_player_index"]]
     return Game(**serialized)
 
 
 def unserialize_round(serialized, players):
-    serialized["players"][i] = players
+    serialized["players"] = players
     for i in range(len(serialized["games"])):
         serialized["games"][i] = unserialize_game(serialized["games"][i], players)
     return Round(**serialized)
@@ -244,11 +256,13 @@ def unserialize_round(serialized, players):
 
 def unserialize_tournament(serialized):
     for i in range(len(serialized["participants"])):
-        serialized["participants"][i] = unserialize_game(serialized["participants"][i])
+        serialized["participants"][i] = unserialize_member(serialized["participants"][i])
+
     for i in range(len(serialized["players"])):
-        serialized["players"][i] = unserialize_player(serialized["players"][i], serialized["participants"][i])
+        serialized["players"][i] = unserialize_player(serialized["players"][i], serialized["participants"])
+
     for i in range(len(serialized["rounds"])):
-        serialized["rounds"][i] = unserialize_player(serialized["rounds"][i],  serialized["players"])
+        serialized["rounds"][i] = unserialize_round(serialized["rounds"][i],  serialized["players"])
     return Tournament(**serialized)
 
 
