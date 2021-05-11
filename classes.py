@@ -202,11 +202,25 @@ class Member:
                                               member.gender == self.gender and
                                               member.discriminator == self.discriminator))
 
+    @property
+    def already_exist(self):
+        db = TinyDB("db.json")
+        member_tables = db.table("members")
+        member = Query()
+        return len(member_tables.search(member.surname == self.surname and
+                                        member.name == self.name and
+                                        member.birthdate == self.birthdate and
+                                        member.gender == self.gender))
+
 
 class Player:
     """Represent a player in a tournament."""
     def __init__(self, **kwargs):
         self.member = kwargs["member"]
+        if self.member.discriminator != 0:
+            self.name = f"{self.member.name}{self.member.discriminator}"
+        else:
+            self.name = self.member.name
         self.people_played_against = kwargs.get("people_played_against", dict())
         self.points = kwargs.get("people_played_against", 0)
 

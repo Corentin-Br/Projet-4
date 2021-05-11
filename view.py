@@ -2,8 +2,7 @@
 import controller
 
 class View:
-    def __init__(self, controller):
-        self.controller = controller
+    def __init__(self):
         pass
 
     def display(self, text):

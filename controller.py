@@ -3,15 +3,18 @@
 import classes
 from exceptions import *
 
+validation_words = ["oui", "o"]
+refusal_words = ["non", "n"]
 
 class GlobalController:
-    def __init__(self):
-        pass
+    def __init__(self, view):
+        self.view = view
 
     def create_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
         new_tournament = classes.Tournament(**kwargs)
-        return "Tournoi créé!", self.create_tournament_controller(new_tournament)
+        self.view.display("Tournoi créé!")
+        return self.create_tournament_controller(new_tournament)
 
     def create_tournament_controller(self, tournament):
         """Create a new controller for a tournament"""
@@ -19,8 +22,45 @@ class GlobalController:
         return new_controller
 
     def add_member(self, **kwargs):
-        """Add a new member"""
+        """Add a new member with all required fields and make sure they are unique"""
+        kwargs = self.fix_member(kwargs)
         new_member = classes.Member(**kwargs)
+        self.add_discriminator(new_member)
+
+    def fix_member(self, data_given):
+        """""Ask for all missing arguments required to create a member"""
+        arguments_required = {"surname": "Quel est le nom",
+                              "name": "Quel est le prénom",
+                              "birthdate": "Quelle est la date de naissance",
+                              "gender": "Quel est le genre",
+                              "ranking": "Quel est le classement"}
+        for argument in arguments_required:
+            if argument not in data_given:
+                data_given[argument] = self.view.ask(f"{arguments_required[argument]} du nouvel utilisateur?")
+        return data_given
+
+    def add_discriminator(self, member):
+        """Ensure the member has an unique discriminator."""
+        if member.already_exist > 0:
+            add = self.view.ask("Cette personne semble déjà exister dans la base de données. Êtes-vous sûr de vouloir "
+                                "la rajouter malgré tout? (o/n)")
+            if add.lower() in validation_words:
+                member.discriminator = member.already_exist
+                member.save()
+                self.view.display(f"Cette personne a bien été ajoutée. Pour la distinguer des personnes similaires, un"
+                                  f"discriminant ({member.discriminator}) a été ajouté. Assurez-vous de vous en"
+                                  f"souvenir pour distinguer les personnes!")
+            elif add.lower not in refusal_words:
+                self.view.display("Votre réponse n'est pas valide. La personne n'a pas été ajoutée à la base de données"
+                                  "")
+                return
+            else:
+                self.view.display("La personne n'a pas été ajoutée à la base de données.")
+
+
+
+
+
         new_member.save() # TODO: Il faut vérifier que les membres ne soient pas dupliqués
         return "Ajout réussi!"  # In reality there is a need for a try/except above to deal with the
         # posibility of not being able to add the member. There's also a need to check with the user that the member
@@ -91,8 +131,9 @@ class GlobalController:
 
 
 class TournamentController:
-    def __init__(self, tournament):
+    def __init__(self, tournament, view):
         self.tournament = tournament
+        self.view = view
 
     def display_players(self, sort_key=None):
         """Display all the players in the tournament"""
@@ -189,10 +230,10 @@ class TournamentController:
                 else:
                     answer = self.view.ask(f"Le résultat de {current_match.name} va être {result}. Il ne pourra plus"
                                            f"être changé après. Êtes-vous sûr de vouloir valider? (o/n)")
-                    if answer == "o":
+                    if answer.lower() in validation_words:
                         current_match.score = result
                         self.view.display("Le résultat a été validé!")
-                    elif answer != "n":
+                    elif answer.lower() not in refusal_words:
                         self.view.display("Votre réponse n'était pas valide. Le résultat n'a pas été validé.")
                     else:
                         self.view.display("Le résultat n'a pas été validé.")
