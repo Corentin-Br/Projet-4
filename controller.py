@@ -6,6 +6,7 @@ from exceptions import *
 validation_words = ["oui", "o"]
 refusal_words = ["non", "n"]
 
+
 class GlobalController:
     def __init__(self, view):
         self.view = view
@@ -18,16 +19,18 @@ class GlobalController:
 
     def create_tournament_controller(self, tournament):
         """Create a new controller for a tournament"""
-        new_controller = TournamentController(tournament)
+        new_controller = TournamentController(tournament, self.view)
         return new_controller
 
     def add_member(self, **kwargs):
         """Add a new member with all required fields and make sure they are unique"""
-        kwargs = self.fix_member(kwargs)
+        kwargs = self.fix_member_creation(kwargs)
         new_member = classes.Member(**kwargs)
         self.add_discriminator(new_member)
+        new_member.save()
+        return
 
-    def fix_member(self, data_given):
+    def fix_member_creation(self, data_given):
         """""Ask for all missing arguments required to create a member"""
         arguments_required = {"surname": "Quel est le nom",
                               "name": "Quel est le prénom",
@@ -40,13 +43,12 @@ class GlobalController:
         return data_given
 
     def add_discriminator(self, member):
-        """Ensure the member has an unique discriminator."""
+        """Ensure the member has a number to make them different from other members with same informations."""
         if member.already_exist > 0:
             add = self.view.ask("Cette personne semble déjà exister dans la base de données. Êtes-vous sûr de vouloir "
                                 "la rajouter malgré tout? (o/n)")
             if add.lower() in validation_words:
                 member.discriminator = member.already_exist
-                member.save()
                 self.view.display(f"Cette personne a bien été ajoutée. Pour la distinguer des personnes similaires, un"
                                   f"discriminant ({member.discriminator}) a été ajouté. Assurez-vous de vous en"
                                   f"souvenir pour distinguer les personnes!")
@@ -56,39 +58,76 @@ class GlobalController:
                 return
             else:
                 self.view.display("La personne n'a pas été ajoutée à la base de données.")
-
-
-
-
-
-        new_member.save() # TODO: Il faut vérifier que les membres ne soient pas dupliqués
-        return "Ajout réussi!"  # In reality there is a need for a try/except above to deal with the
-        # posibility of not being able to add the member. There's also a need to check with the user that the member
-        # we're going to add is the correct one.
+        return
 
     def change_ranking(self, name, surname, new_ranking):
         """Change the ranking of a single player"""
-        pass
-        # TODO : What's under should be in models
-        # if name, surname not in DB:
-        # view must send that there are no such person
-        # if name, surname present several times
-        # view must display the name surname gender birthdate and discriminator of all players that fit.
-        # The user must choose a number
-        # If the member is unique or once it has been chosen, the ranking of the player is replaced by the new_ranking
+        member = self.choose_a_member(classes.Member.get_member(name, surname))
+        if not member:
+            return
+        member["ranking"] = new_ranking
+        classes.Member(**member).save()
+
+    def choose_a_member(self, possible_members):
+        if len(possible_members) == 0:
+            self.view.display("Il n'y a personne avec ce nom dans la base de données!")
+            return
+        else:
+            key_presentation = "   ".join(key for key in possible_members[0].keys())
+            values = ["   ".join([value for value in member.values()]) for member in possible_members]
+            value_presentation = ""
+            for i, value in enumerate(values):
+                value_presentation += f"{i+1}) {value} \n"
+            self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
+                              f"{key_presentation} \n {value_presentation}")
+            if len(possible_members) > 1:
+                number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
+                if not number.isnumeric():
+                    self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
+                    return
+                elif int(number) not in range(len(possible_members)):
+                    self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
+                    return
+                else:
+                    number = int(number)-1
+            else:
+                number = 0
+            return possible_members[number]
 
     def load_tournament(self, name):
         """Load an existing tournament"""
-        pass
-        # TODO: What's under should be in models
-        # if name not in DB:
-        # view must send that there are no such tournament
-        # if name present several times
-        # view must display the name place and date of all the tournaments that fit.
-        # the user must choose a number
-        # If the tournament is unique or once it has been chosen
-        # Create an instance of Tournament with its data.
-        # create_tournament_controller(self, tournament)
+        tournament = self.choose_a_tournament(classes.Tournament.get_tournament(name))
+        if not tournament:
+            return
+        tournament_instance = classes.Tournament(**tournament)
+        return self.create_tournament_controller(tournament_instance)
+
+    def choose_a_tournament(self, possible_tournaments):
+        if len(possible_tournaments) == 0:
+            self.view.display("Il n'y a pas de tournoi avec ce nom dans la base de données!")
+            return
+        else:
+            key_presentation = "   ".join(["name", "place", "date"])
+            values = ["   ".join([tournament["name"], tournament["place"], tournament["date"]])
+                      for tournament in possible_tournaments]
+            value_presentation = ""
+            for i, value in enumerate(values):
+                value_presentation += f"{i+1}) {value} \n"
+            self.view.display(f"Il y a {len(possible_tournaments)} tournoi(s) avec ce nom dans la base de données: \n"
+                              f"{key_presentation} \n {value_presentation}")
+            if len(possible_tournaments) > 1:
+                number = self.view.ask("Indiquez le numéro du tournoi dont vous voulez modifier le classement")
+                if not number.isnumeric():
+                    self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
+                    return
+                elif int(number) not in range(len(possible_tournaments)):
+                    self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
+                    return
+                else:
+                    number = int(number)-1
+            else:
+                number = 0
+            return possible_tournaments[number]
 
     def display_members(self, sort_key=None):
         """Display all the members"""

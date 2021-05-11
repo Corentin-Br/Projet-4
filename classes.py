@@ -75,8 +75,7 @@ class Tournament:
         """Return a list of participants sorted by score, to be used to display the result of the tournament."""
         return sorted(self.players, key=lambda player: player.points, reverse=True)
 
-    @property
-    def serialized(self):
+    def to_dict(self):
         """Return a serialized instance of a tournament"""
         serialized_participants = [participant.to_dict() for participant in self.participants]
         serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
@@ -92,9 +91,15 @@ class Tournament:
         db = TinyDB("db.json")
         tournament_tables = db.table("tournaments")
         tournament = Query()
-        tournament_tables.upsert(self.serialized, (tournament.name == self.name and
-                                                   tournament.place == self.place and
-                                                   tournament.date == self.date))
+        tournament_tables.upsert(self.to_dict(), (tournament.name == self.name &
+                                                  tournament.place == self.place &
+                                                  tournament.date == self.date))
+
+    @classmethod
+    def get_tournament(cls, name):
+        tournament_tables = TinyDB("db.json").table("tournaments")
+        tournament = Query()
+        return tournament_tables.search(tournament.name == name)
 
 
 class Round:
@@ -184,7 +189,7 @@ class Member:
         self.birthdate = kwargs.get("birthdate", 0)
         self.gender = kwargs.get("gender", "")
         self.ranking = kwargs.get("ranking", "")
-        self.discriminator = kwargs.get("discriminator", "")
+        self.discriminator = kwargs.get("discriminator", 0)
 
     def to_dict(self):
         """Serialize an instance of a member"""
@@ -193,24 +198,28 @@ class Member:
 
     def save(self):
         """Add or update a member in the database"""
-        db = TinyDB("db.json")
-        member_tables = db.table("members")
+        member_tables = TinyDB("db.json").table("members")
         member = Query()
-        member_tables.upsert(self.to_dict(), (member.surname == self.surname and
-                                              member.name == self.name and
-                                              member.birthdate == self.birthdate and
-                                              member.gender == self.gender and
+        member_tables.upsert(self.to_dict(), (member.surname == self.surname &
+                                              member.name == self.name &
+                                              member.birthdate == self.birthdate &
+                                              member.gender == self.gender &
                                               member.discriminator == self.discriminator))
 
     @property
     def already_exist(self):
-        db = TinyDB("db.json")
-        member_tables = db.table("members")
+        member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return len(member_tables.search(member.surname == self.surname and
-                                        member.name == self.name and
-                                        member.birthdate == self.birthdate and
+        return len(member_tables.search(member.surname == self.surname &
+                                        member.name == self.name &
+                                        member.birthdate == self.birthdate &
                                         member.gender == self.gender))
+
+    @classmethod
+    def get_member(cls, name, surname):
+        member_tables = TinyDB("db.json").table("members")
+        member = Query()
+        return member_tables.search(member.name == name & member.surname == surname)
 
 
 class Player:
