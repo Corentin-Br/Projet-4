@@ -209,7 +209,7 @@ class Member:
         else:
             return False
 
-    def __ne__(self,other):
+    def __ne__(self, other):
         return not self.__eq__(other)
 
     def to_dict(self):
@@ -228,8 +228,6 @@ class Member:
         member = Query()
         member_tables.upsert(self.to_dict(), ((member.surname == self.surname) &
                                               (member.name == self.name) &
-                                              (member.birthdate == self.birthdate.strftime("%H:%M")) &
-                                              (member.gender == self.gender) &
                                               (member.discriminator == self.discriminator)))
 
     @property
@@ -237,18 +235,21 @@ class Member:
         """Return the number of members in the database that have the same name, surname, birthdate and gender."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return len(member_tables.search((member.surname == self.surname) &
-                                        (member.name == self.name) &
-                                        (member.birthdate == self.birthdate.strftime("%H:%M")) &
-                                        (member.gender == self.gender)))
+        return len(member_tables.search((member.surname == str(self.surname)) &
+                                        (member.name == str(self.name))))
 
     @classmethod
-    def get_member(cls, name, surname):
+    def get_member(cls, name, surname, discriminator=None):
         """Return all the members with a specific name and surname in the database"""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return [Member(**member) for member in member_tables.search((member.name == str(name)) &
-                                                                    (member.surname == str(surname)))]
+        if discriminator:
+            return [Member(**member) for member in member_tables.search((member.name == str(name)) &
+                                                                        (member.surname == str(surname)) &
+                                                                        (member.discriminator == discriminator))]
+        else:
+            return [Member(**member) for member in member_tables.search((member.name == str(name)) &
+                                                                        (member.surname == str(surname)))]
 
     @classmethod
     def get_all_members(cls):
@@ -295,9 +296,9 @@ class Player:
     @property
     def name(self):
         if self.member.discriminator != 0:
-            return f"{self.member.name}{self.member.discriminator}"
+            return f"{self.member.name} {self.member.surname} {self.member.discriminator}"
         else:
-            return self.member.name
+            return f"{self.member.name} {self.member.surname}"
 
 
 def unserialize_member(serialized):

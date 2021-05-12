@@ -9,8 +9,6 @@ refusal_words = ["non", "n"]
 
 
 class Controller:
-    POSSIBLE_COMMANDS = {}
-
     def __init__(self, view):
         self.view = view
 
@@ -38,6 +36,10 @@ class Controller:
             else:
                 number = 0
             return possible_members[number]
+
+    def display_help(self):
+        pass
+        # Send the readme? Or some sort of readme.
 
 
 class GlobalController(Controller):
@@ -115,17 +117,13 @@ class GlobalController(Controller):
             self.view.display("Il n'y a pas de tournois à afficher!")
         return
 
-    def display_help(self):
-        pass
-        # Send various possible commands
-
     def does(self, command, args, kwargs):
-        possible_commands = {"créer un tournoi": self.add_tournament,
-                             "ajouter un acteur": self.add_member,
-                             "changer le classement": self.change_ranking,
-                             "charger un tournoi": self.load_tournament,
-                             "afficher tous les acteurs": self.display_members,
-                             "afficher tous les tournois": self.display_tournaments,
+        possible_commands = {"créer_tournoi": self.add_tournament,
+                             "ajouter_acteur": self.add_member,
+                             "changer_classement": self.change_ranking,
+                             "charger_tournoi": self.load_tournament,
+                             "afficher_acteurs": self.display_members,
+                             "afficher_tournois": self.display_tournaments,
                              "aide": self.display_help}
         if command.lower() in possible_commands:
             try:
@@ -260,8 +258,8 @@ class GlobalController(Controller):
 
 class TournamentController(Controller):
     def __init__(self, tournament, view):
+        super().__init__(view)
         self.tournament = tournament
-        self.view = view
 
     def display_players(self, sort_key=None):
         """Display all the players in the tournament"""
@@ -275,6 +273,7 @@ class TournamentController(Controller):
                                           player.surname,
                                           player.name,
                                           str(player.points)]))
+        return
 
     def display_rounds(self):
         """Display all the rounds in the tournament"""
@@ -284,6 +283,7 @@ class TournamentController(Controller):
                                           f"a commencé à {game_round.starting_time.strftime('%H:%M')}",
                                           f"a fini à {game_round.starting_time.strftime('%H:%M')}",
                                           " et ".join(game.name for game in game_round.games)]))
+        return
 
     def display_games(self):
         """Display all the games in the tournament"""
@@ -291,29 +291,51 @@ class TournamentController(Controller):
         for game in games:
             self.view.display("   ".join([game.name,
                                           game.score]))
+        return
 
     def add_participant(self, name, surname):
-        try:
-            self.tournament.add_participant(self.choose_a_member(classes.Member.get_member(name, surname)))
-        except TournamentStartedError:
-            self.view.display("Le tournoi a déjà commencé!")
-            return
-        except TooManyParticipantsError:
-            self.view.display("Il y a déjà assez de participants!")
-            return
-        except AlreadyInTournamentError as inst:
-            self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} est déjà dans le tournoi.")
-            return
-        else:
-            self.view.display(f"{name} {surname} a bien été ajouté au tournoi en cours.")
+        new_participant = self.choose_a_member(classes.Member.get_member(name, surname))
+        if new_participant:
+            try:
+                self.tournament.add_participant(new_participant)
+            except TournamentStartedError:
+                self.view.display("Le tournoi a déjà commencé!")
+                return
+            except TooManyParticipantsError:
+                self.view.display("Il y a déjà assez de participants!")
+                return
+            except AlreadyInTournamentError as inst:
+                self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} est déjà dans le tournoi.")
+                return
+            else:
+                self.view.display(f"{name} {surname} a bien été ajouté au tournoi en cours.")
+        return
 
     def remove_participant(self, name, surname):
-        try:
-            self.tournament.remove_participant(self.choose_a_member(classes.Member.get_member(name, surname)))
-        except NotInTournamentError as inst:
-            self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} n'est pas dans le tournoi.")
+        participant_to_remove = self.choose_a_member(classes.Member.get_member(name, surname))
+        if participant_to_remove:
+            try:
+                self.tournament.remove_participant(participant_to_remove)
+            except NotInTournamentError as inst:
+                self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} "
+                                  f"{inst.problem_member.discriminator} n'est pas dans le tournoi.")
+            else:
+                self.view.display(f"{name} {surname} a bien été enlevé du tournoi en cours")
+        return
+
+    def get_info_player(self, name, surname, discriminator):
+        if discriminator.isnumeric():
+            member = classes.Member.get_member(name, surname, discriminator=int(discriminator))[0]
+            self.view.display("Voilà les informations du joueur")
+            self.view.display("  ".join([member.surname,
+                                         member.name,
+                                         member.birthdate.strftime("%d/%m/%Y"),
+                                         member.gender,
+                                         str(member.ranking)]))
         else:
-            self.view.display(f"{name} {surname} a bien été enlevé du tournoi en cours")
+            self.view.display("Le discriminant que vous avez donné n'est pas valide. Il doit s'agir d'un "
+                              "nombre entier.")
+        return
 
     def start(self):
         try:
@@ -323,7 +345,8 @@ class TournamentController(Controller):
         except AlreadyStartedError:
             self.view.display("Le tournoi est déjà lancé!")
         else:
-            self.view.display("Le tournoi est lancé")
+            self.view.display("Le tournoi est lancé.")
+        return
 
     def next_round(self):
         try:
@@ -337,6 +360,7 @@ class TournamentController(Controller):
             game_round = self.tournament.rounds[-1]
             for game in game_round.games:
                 self.view.display(game.name)
+        return
 
     def finish_round(self):
         try:
@@ -345,6 +369,7 @@ class TournamentController(Controller):
             self.view.display(f"Le match {inst.game_not_finished.name} n'est pas fini.")
         else:
             self.view.display("La ronde actuelle a bien été finie.")
+        return
 
     def give_results(self, match_number, result):
         if not is_valid_result(result):
@@ -366,25 +391,45 @@ class TournamentController(Controller):
                         self.view.display("Votre réponse n'était pas valide. Le résultat n'a pas été validé.")
                     else:
                         self.view.display("Le résultat n'a pas été validé.")
+        return
 
     def finish(self):
         if len(self.tournament.rounds) == self.tournament.max_round and self.tournament.rounds[-1].finished:
             result = self.tournament.result
             for player in result:
                 self.view.display("   ".join([player.name,
-                                              player.surname,
                                               player.points]))
-            self.exit()
+            return "exit"
         else:
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
-
-    def exit(self):
-        pass
-        # How to make it go back to the global controller in the main loop?
+            return
 
     def does(self, command, args, kwargs):
-        pass
-        # Find the method the user wants to run.
+        possible_commands = {"afficher_joueurs": self.display_players,
+                             "afficher_tours": self.display_rounds,
+                             "afficher_matchs": self.display_games,
+                             "ajouter_participant": self.add_participant,
+                             "enlever_participant": self.remove_participant,
+                             "détails": self.get_info_player,
+                             "commencer": self.start,
+                             "tour_suivant": self.next_round,
+                             "finir_tour": self.finish_round,
+                             "résultat": self.give_results,
+                             "finir_tournoi": self.finish,
+                             "aide": self.display_help}
+        if command.lower() in possible_commands:
+            try:
+                result = possible_commands[command.lower()](*args, **kwargs)
+            except TypeError:
+                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
+                                  "pour obtenir plus d'informations.")
+                return
+            else:
+                return result
+        else:
+            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
+                              "obtenir plus d'informations.")
+            return
 
 
 def is_valid_result(result):
