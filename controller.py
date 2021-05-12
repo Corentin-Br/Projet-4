@@ -8,9 +8,41 @@ validation_words = ["oui", "o"]
 refusal_words = ["non", "n"]
 
 
-class GlobalController:
+class Controller:
+    POSSIBLE_COMMANDS = {}
+
     def __init__(self, view):
         self.view = view
+
+    def choose_a_member(self, possible_members):
+        """Return a member instance picked by the user"""
+        if len(possible_members) == 0:
+            self.view.display("Il n'y a personne avec ce nom dans la base de données!")
+            return
+        else:
+            key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
+            values = ["   ".join([value for value in member.__dict__.values()]) for member in possible_members]
+            value_presentation = "\n".join([f"{i+1}) {value}" for i, value in enumerate(values)])
+            self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
+                              f"{key_presentation} \n {value_presentation}")
+            if len(possible_members) > 1:
+                number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
+                if not number.isnumeric():
+                    self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
+                    return
+                elif int(number) not in range(len(possible_members)):
+                    self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
+                    return
+                else:
+                    number = int(number) - 1
+            else:
+                number = 0
+            return possible_members[number]
+
+
+class GlobalController(Controller):
+    def __init__(self, view):
+        super().__init__(view)
 
     def add_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
@@ -48,16 +80,15 @@ class GlobalController:
         members = classes.Member.get_all_members()
         if sort_key is not None:
             members = sorted(members, key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "name"))
-        members_to_display = ""
-        for i in range(len(members)):
-            member = members[i]
-            members_to_display += "   ".join([f"{i})",
-                                             member.surname,
-                                             member.name,
-                                             member.birthdate.strftime("%d/%m/%Y"),
-                                             member.gender,
-                                             str(member.ranking),
-                                              "\n"])
+        members_to_display = "\n".join(["   ".join([f"{i})",
+                                                    member.surname,
+                                                    member.name,
+                                                    member.birthdate.strftime("%d/%m/%Y"),
+                                                    member.gender,
+                                                    str(member.ranking)])
+                                        for i, member in enumerate(members)
+                                        ]
+                                       )
         if members_to_display:
             self.view.display(members_to_display)
         else:
@@ -67,16 +98,17 @@ class GlobalController:
     def display_tournaments(self):
         """Display all the tournaments"""
         tournaments = classes.Tournament.all_tournaments
-        tournaments_to_display = ""
-        for i in range(len(tournaments)):
-            tournament = tournaments[i]
-            tournaments_to_display += "   ".join([f"{i})",
-                                                  tournament.name,
-                                                  tournament.place,
-                                                  "et ".join([date.strftime("%d/%m%Y") for date in tournament.date]),
-                                                  tournament.type,
-                                                  tournament.description,
-                                                  "\n"])
+        tournaments_to_display = "\n".join(["   ".join([f"{i})",
+                                                        tournament.name,
+                                                        tournament.place,
+                                                        "et ".join([date.strftime("%d/%m/%Y")
+                                                                    for date in tournament.date
+                                                                    ]),
+                                                        tournament.type,
+                                                        tournament.description])
+                                            for i, tournament in enumerate(tournaments)
+                                            ])
+
         if tournaments_to_display:
             self.view.display(tournaments_to_display)
         else:
@@ -159,33 +191,6 @@ class GlobalController:
                 self.view.display("La personne n'a pas été ajoutée à la base de données.")
         return
 
-    def choose_a_member(self, possible_members):
-        """Return a member instance picked by the user"""
-        if len(possible_members) == 0:
-            self.view.display("Il n'y a personne avec ce nom dans la base de données!")
-            return
-        else:
-            key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
-            values = ["   ".join([value for value in member.__dict__.values()]) for member in possible_members]
-            value_presentation = ""
-            for i, value in enumerate(values):
-                value_presentation += f"{i + 1}) {value} \n"
-            self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
-                              f"{key_presentation} \n {value_presentation}")
-            if len(possible_members) > 1:
-                number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
-                if not number.isnumeric():
-                    self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
-                    return
-                elif int(number) not in range(len(possible_members)):
-                    self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
-                    return
-                else:
-                    number = int(number) - 1
-            else:
-                number = 0
-            return possible_members[number]
-
     def fix_tournament_creation(self, data_given):
         """Ask for all missing arguments required to create a tournament"""
         arguments_required = {"name": "Quel est le nom du tournoi?",
@@ -253,9 +258,7 @@ class GlobalController:
             return possible_tournaments[number]
 
 
-
-
-class TournamentController:
+class TournamentController(Controller):
     def __init__(self, tournament, view):
         self.tournament = tournament
         self.view = view
@@ -264,52 +267,53 @@ class TournamentController:
         """Display all the players in the tournament"""
         players = self.tournament.players
         if sort_key is not None:
-            players = sorted(players, key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"))
-            # TODO : points donne ça à l'envers
-        for i in range(len(players)):
-            player = players[i]
+            players = sorted(players,
+                             key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"),
+                             reverse=(sort_key == "points"))
+        for i, player in enumerate(players):
             self.view.display("   ".join([f"{i})",
                                           player.surname,
                                           player.name,
-                                          player.points]))
+                                          str(player.points)]))
 
     def display_rounds(self):
         """Display all the rounds in the tournament"""
         rounds = self.tournament.rounds
-        for i in range(len(rounds)):
-            game_round = rounds[i]
+        for game_round in rounds:
             self.view.display("   ".join([game_round.name,
-                                          f"a commencé à {game_round.starting_time}",
-                                          f"a fini à {game_round.starting_time}",
-                                          "\n".join(game.name for game in game_round.games)]))
+                                          f"a commencé à {game_round.starting_time.strftime('%H:%M')}",
+                                          f"a fini à {game_round.starting_time.strftime('%H:%M')}",
+                                          " et ".join(game.name for game in game_round.games)]))
 
     def display_games(self):
         """Display all the games in the tournament"""
         games = [game for tournament_round in self.tournament.rounds for game in tournament_round.games]
-        for i in range(len(games)):
-            game = games[i]
+        for game in games:
             self.view.display("   ".join([game.name,
                                           game.score]))
 
-    def add_participant(self, full_name):
+    def add_participant(self, name, surname):
         try:
-            self.tournament.add_participant(classes.Member.all_members[full_name])
+            self.tournament.add_participant(self.choose_a_member(classes.Member.get_member(name, surname)))
         except TournamentStartedError:
             self.view.display("Le tournoi a déjà commencé!")
+            return
         except TooManyParticipantsError:
             self.view.display("Il y a déjà assez de participants!")
+            return
         except AlreadyInTournamentError as inst:
             self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} est déjà dans le tournoi.")
+            return
         else:
-            self.view.display(f"{full_name} a bien été ajouté au tournoi en cours.")
+            self.view.display(f"{name} {surname} a bien été ajouté au tournoi en cours.")
 
-    def remove_participant(self, full_name):
+    def remove_participant(self, name, surname):
         try:
-            self.tournament.remove_participant(classes.Member.all_members[full_name])
+            self.tournament.remove_participant(self.choose_a_member(classes.Member.get_member(name, surname)))
         except NotInTournamentError as inst:
             self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} n'est pas dans le tournoi.")
         else:
-            self.view.display(f"{full_name} a bien été enlevé du tournoi en cours")
+            self.view.display(f"{name} {surname} a bien été enlevé du tournoi en cours")
 
     def start(self):
         try:
