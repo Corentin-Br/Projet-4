@@ -1,6 +1,6 @@
 """Implement all classes required to create and play a complete tournament"""
 from time import time
-from datetime import date
+from datetime import datetime
 from random import sample
 
 from tinydb import TinyDB, Query
@@ -14,17 +14,23 @@ class Tournament:
     all_tournaments = {}
 
     def __init__(self, **kwargs):
-        self.name = kwargs.get("name", "")
-        self.place = kwargs.get("place", "")
-        self.date = kwargs.get("date", date.fromtimestamp(time()))
-        self.max_round = kwargs.get("max_round", 4)
-        self.rounds = kwargs.get("rounds", [])
+        self.name = kwargs["name"]
+        self.place = kwargs["place"]
+        # the dates are given as a string in the format dd/mm/yyyy_dd/mm/yyyy_.... during the creation of the
+        # tournament.
+        if type(kwargs["date"]) == str:
+            self.date = [datetime.strptime(date, "%d/%m/%Y") for date in kwargs["date"].split("_")]
+        else:
+            self.date = kwargs["date"]
+        self.max_round = int(kwargs["max_round"])
+        self.type = kwargs["type"]
+        self.description = kwargs["description"]
+        self.participant_amount = int(kwargs["participant_amount"])
+
         self.participants = kwargs.get("participants", [])
         self.players = kwargs.get("players", [])
+        self.rounds = kwargs.get("rounds", [])
         self.is_started = kwargs.get("is_started", False)
-        self.type = kwargs.get("type", "bullet")
-        self.description = kwargs.get("description", "")
-        self.participant_amount = kwargs.get("participant_amount", "")
 
     def add_participant(self, member):
         """Add a participant for the tournament."""
@@ -59,7 +65,7 @@ class Tournament:
     def create_round(self):
         """Create a round."""
         if len(self.rounds) == 0 or (len(self.rounds) <= self.max_round and self.rounds[-1].finished):
-            starting_time = time()
+            starting_time = datetime.fromtimestamp(time())
             new_round = Round(**{"round_number": len(self.rounds) + 1,
                                  "players": self.players,
                                  "starting_time": starting_time})
@@ -219,7 +225,12 @@ class Member:
     def get_member(cls, name, surname):
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return member_tables.search(member.name == name & member.surname == surname)
+        return [Member(**member) for member in member_tables.search(member.name == name & member.surname == surname)]
+
+    @classmethod
+    def get_all_members(cls):
+        member_tables = TinyDB("db.json").table("members")
+        return [Member(**member) for member in member_tables.all()]
 
 
 class Player:

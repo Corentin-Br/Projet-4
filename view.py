@@ -14,17 +14,17 @@ class View:
 
     def ask_command(self, text):
         answer = input(text)
-        answer = find_keywords(answer.split())
+        answer = parse(answer.split())
         return answer
 
 
-def find_keywords(list_of_strings):
+def parse(list_of_strings):
     working_list = list_of_strings.copy()
     command = working_list.pop(0)
     args = []
     kwargs = {}
-    for i in range(working_list):
-        string = working_list[i]
+    for i, string in enumerate(working_list):
+        string = string.lower()
         if string == "ignore":
             continue
         if string.startswith("--") and i < len(working_list)-1:

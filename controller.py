@@ -1,4 +1,5 @@
 """Implement a class that will manage all interactions with the model"""
+from datetime import datetime
 
 import classes
 from exceptions import *
@@ -11,16 +12,12 @@ class GlobalController:
     def __init__(self, view):
         self.view = view
 
-    def create_tournament(self, **kwargs):
+    def add_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
+        kwargs = self.fix_tournament_creation(kwargs)
         new_tournament = classes.Tournament(**kwargs)
         self.view.display("Tournoi créé!")
         return self.create_tournament_controller(new_tournament)
-
-    def create_tournament_controller(self, tournament):
-        """Create a new controller for a tournament"""
-        new_controller = TournamentController(tournament, self.view)
-        return new_controller
 
     def add_member(self, **kwargs):
         """Add a new member with all required fields and make sure they are unique"""
@@ -30,16 +27,118 @@ class GlobalController:
         new_member.save()
         return
 
+    def change_ranking(self, name, surname, new_ranking):
+        """Change the ranking of a single player"""
+        member = self.choose_a_member(classes.Member.get_member(name, surname))
+        if not member:
+            return
+        member.ranking = new_ranking
+        member.save()
+        return
+
+    def load_tournament(self, name):
+        """Load an existing tournament"""
+        tournament = self.choose_a_tournament(classes.Tournament.get_tournament(name))
+        if not tournament:
+            return
+        return self.create_tournament_controller(tournament)
+
+    def display_members(self, sort_key=None):
+        """Display all the members"""
+        members = classes.Member.get_all_members()
+        if sort_key is not None:
+            members = sorted(members, key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "name"))
+        members_to_display = ""
+        for i in range(len(members)):
+            member = members[i]
+            members_to_display += "   ".join([f"{i})",
+                                             member.surname,
+                                             member.name,
+                                             member.birthdate.strftime("%d/%m/%Y"),
+                                             member.gender,
+                                             str(member.ranking),
+                                              "\n"])
+        if members_to_display:
+            self.view.display(members_to_display)
+        else:
+            self.view.display("Il n'y a pas de membres à afficher!")
+        return
+
+    def display_tournaments(self):
+        """Display all the tournaments"""
+        tournaments = classes.Tournament.all_tournaments
+        tournaments_to_display = ""
+        for i in range(len(tournaments)):
+            tournament = tournaments[i]
+            tournaments_to_display += "   ".join([f"{i})",
+                                                  tournament.name,
+                                                  tournament.place,
+                                                  "et ".join([date.strftime("%d/%m%Y") for date in tournament.date]),
+                                                  tournament.type,
+                                                  tournament.description,
+                                                  "\n"])
+        if tournaments_to_display:
+            self.view.display(tournaments_to_display)
+        else:
+            self.view.display("Il n'y a pas de tournois à afficher!")
+        return
+
+    def display_help(self):
+        pass
+        # Send various possible commands
+
+    def does(self, command, args, kwargs):
+        possible_commands = {"créer un tournoi": self.add_tournament,
+                             "ajouter un acteur": self.add_member,
+                             "changer le classement": self.change_ranking,
+                             "charger un tournoi": self.load_tournament,
+                             "afficher tous les acteurs": self.display_members,
+                             "afficher tous les tournois": self.display_tournaments,
+                             "aide": self.display_help}
+        if command.lower() in possible_commands:
+            try:
+                result = possible_commands[command.lower()](*args, **kwargs)
+            except TypeError:
+                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
+                                  "pour obtenir plus d'informations.")
+                return
+            else:
+                return result
+        else:
+            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
+                              "obtenir plus d'informations.")
+            return
+
+    def create_tournament_controller(self, tournament):
+        """Create a new controller for a tournament"""
+        new_controller = TournamentController(tournament, self.view)
+        return new_controller
+
     def fix_member_creation(self, data_given):
-        """""Ask for all missing arguments required to create a member"""
+        """Ask for all missing arguments required to create a member"""
         arguments_required = {"surname": "Quel est le nom",
                               "name": "Quel est le prénom",
-                              "birthdate": "Quelle est la date de naissance",
+                              "birthdate": "Quelle est la date de naissance (jj/mm/aaaa)",
                               "gender": "Quel est le genre",
                               "ranking": "Quel est le classement"}
         for argument in arguments_required:
             if argument not in data_given:
                 data_given[argument] = self.view.ask(f"{arguments_required[argument]} du nouvel utilisateur?")
+        self.check_member_arguments(data_given)
+        return data_given
+
+    def check_member_arguments(self, data_given):
+        """Checks that arguments for a member will be converted without issues"""
+        arguments_to_check = {"birthdate": {"check": check_date, "sentence": "La date que vous avez donnée est invalide"
+                                                                             ". Elle doit être au format jj/mm/aaaa. "
+                                                                             "Entrez une date valide"},
+                              "ranking": {"check": check_number, "sentence": "Le classement doit être un nombre"
+                                                                             " entier positif. Entrez une valeur "
+                                                                             "correcte."}
+                              }
+        for argument in arguments_to_check:
+            while not arguments_to_check[argument]["check"](data_given[argument]):
+                data_given[argument] = self.view.ask(arguments_to_check[argument]["sentence"])
         return data_given
 
     def add_discriminator(self, member):
@@ -60,24 +159,17 @@ class GlobalController:
                 self.view.display("La personne n'a pas été ajoutée à la base de données.")
         return
 
-    def change_ranking(self, name, surname, new_ranking):
-        """Change the ranking of a single player"""
-        member = self.choose_a_member(classes.Member.get_member(name, surname))
-        if not member:
-            return
-        member["ranking"] = new_ranking
-        classes.Member(**member).save()
-
     def choose_a_member(self, possible_members):
+        """Return a member instance picked by the user"""
         if len(possible_members) == 0:
             self.view.display("Il n'y a personne avec ce nom dans la base de données!")
             return
         else:
-            key_presentation = "   ".join(key for key in possible_members[0].keys())
-            values = ["   ".join([value for value in member.values()]) for member in possible_members]
+            key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
+            values = ["   ".join([value for value in member.__dict__.values()]) for member in possible_members]
             value_presentation = ""
             for i, value in enumerate(values):
-                value_presentation += f"{i+1}) {value} \n"
+                value_presentation += f"{i + 1}) {value} \n"
             self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
                               f"{key_presentation} \n {value_presentation}")
             if len(possible_members) > 1:
@@ -89,30 +181,61 @@ class GlobalController:
                     self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
                     return
                 else:
-                    number = int(number)-1
+                    number = int(number) - 1
             else:
                 number = 0
             return possible_members[number]
 
-    def load_tournament(self, name):
-        """Load an existing tournament"""
-        tournament = self.choose_a_tournament(classes.Tournament.get_tournament(name))
-        if not tournament:
-            return
-        tournament_instance = classes.Tournament(**tournament)
-        return self.create_tournament_controller(tournament_instance)
+    def fix_tournament_creation(self, data_given):
+        """Ask for all missing arguments required to create a tournament"""
+        arguments_required = {"name": "Quel est le nom du tournoi?",
+                              "place": "Où se déroule le tournoi?",
+                              "date": "Quelles sont la ou les dates du tournoi?(jj/mm/aaaa séparés par des underscore "
+                                      "s'il y a plusieurs dates)",
+                              "max_round": "Combien de rondes y aura-t-il?",
+                              "participant_amount": "Combien de participants y aura-t-il?",
+                              "type": "Quel type de tournoi ce sera?",
+                              "description": "Quels détails voulez-vous rajouter?"
+                              }
+
+        for argument in arguments_required:
+            if argument not in data_given:
+                data_given[argument] = self.view.ask(f"{arguments_required[argument]} du nouvel utilisateur?")
+        data_given = self.check_tournament_arguments(data_given)
+        return data_given
+
+    def check_tournament_arguments(self, data_given):
+        """Checks that arguments for a tournament will be converted without issues"""
+        arguments_to_check = {"date": {"check": check_date, "sentence": "La date que vous avez donnée est invalide. "
+                                                                        "Elle doit être au format jj/mm/aaaa. S'il y a "
+                                                                        "plusieurs dates, séparez-les avec des "
+                                                                        "underscore. Entrez une date valide"},
+                              "max_round": {"check": check_number, "sentence": "Le nombre de rondes doit être un nombre"
+                                                                               " entier positif. Entrez une valeur "
+                                                                               "correcte."},
+                              "participant_amount": {"check": check_number, "sentence": "Le nombre de participants doit"
+                                                                                        " être un nombre entier positif"
+                                                                                        ". Entrez une valeur correcte"},
+                              "type": {"check": check_type, "sentence": "Le type de tournoi est invalide. Entrez un nom"
+                                                                        " valide"}
+                              }
+        for argument in arguments_to_check:
+            while not arguments_to_check[argument]["check"](data_given[argument]):
+                data_given[argument] = self.view.ask(arguments_to_check[argument]["sentence"])
+        return data_given
 
     def choose_a_tournament(self, possible_tournaments):
+        """Return a tournament instance picked by the user"""
         if len(possible_tournaments) == 0:
             self.view.display("Il n'y a pas de tournoi avec ce nom dans la base de données!")
             return
         else:
             key_presentation = "   ".join(["name", "place", "date"])
-            values = ["   ".join([tournament["name"], tournament["place"], tournament["date"]])
+            values = ["   ".join([tournament.name, tournament.place, "et ".join(tournament.date)])
                       for tournament in possible_tournaments]
             value_presentation = ""
             for i, value in enumerate(values):
-                value_presentation += f"{i+1}) {value} \n"
+                value_presentation += f"{i + 1}) {value} \n"
             self.view.display(f"Il y a {len(possible_tournaments)} tournoi(s) avec ce nom dans la base de données: \n"
                               f"{key_presentation} \n {value_presentation}")
             if len(possible_tournaments) > 1:
@@ -124,49 +247,12 @@ class GlobalController:
                     self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
                     return
                 else:
-                    number = int(number)-1
+                    number = int(number) - 1
             else:
                 number = 0
             return possible_tournaments[number]
 
-    def display_members(self, sort_key=None):
-        """Display all the members"""
-        members = classes.Member.all_members
-        if sort_key is not None:
-            members = sorted(members, key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "name"))
-        string_return = ""
-        for i in range(len(members)):
-            member = members[i]
-            string_return += "   ".join([f"{i})",
-                                         member.surname,
-                                         member.name,
-                                         member.birthdate,
-                                         member.gender,
-                                         member.ranking])
-            string_return += "\n"
-        return string_return
 
-    def display_tournaments(self):
-        """Display all the tournaments"""
-        tournaments = classes.Tournament.all_tournaments
-        string_return = ""
-        for i in range(len(tournaments)):
-            tournament = tournaments[i]
-            string_return += "   ".join([f"{i})",
-                                         tournament.name,
-                                         tournament.place,
-                                         "et ".join(tournament.date),
-                                         tournament.type,
-                                         tournament.description])
-        return string_return
-
-    def display_help(self):
-        pass
-        # Send various possible commands
-
-    def does(self, command, args, kwargs):
-        pass
-        # Find the method the user wants to use and run it.
 
 
 class TournamentController:
@@ -300,6 +386,29 @@ class TournamentController:
 def is_valid_result(result):
     valid_results = {"0-1", "1-0", "1/2-1/2"}
     return result in valid_results
+
+
+def check_date(value):
+    potential_dates = value.split("_")
+    for date in potential_dates:
+        try:
+            datetime.strptime(date, "%d/%m/%Y")
+        except ValueError:
+            return False
+    return True
+
+
+def check_number(value):
+    try:
+        int(value)
+    except ValueError:
+        return False
+    else:
+        return int(value) > 0
+
+
+def check_type(value):
+    return value in ["bullet", "blitz", "coup rapide"]
 
 
 # Que doit faire mon contrôleur?
