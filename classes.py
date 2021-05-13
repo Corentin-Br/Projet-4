@@ -81,7 +81,7 @@ class Tournament:
     @property
     def to_dict(self):
         """Return a serialized instance of a tournament"""
-        serialized_participants = [participant.to_dict() for participant in self.participants]
+        serialized_participants = [participant.to_dict for participant in self.participants]
         serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
         serialized_players = [player.to_dict(self.participants) for player in self.players]
         serialized_tournament = {"name": self.name,
@@ -112,8 +112,8 @@ class Tournament:
         """Return all tournaments with a specific name"""
         tournament_tables = TinyDB("db.json").table("tournaments")
         tournament_query = Query()
-        return [Tournament(**tournament) for tournament in
-                tournament_tables.search(tournament_query.name.matches(str(name).lower(), flags=IGNORECASE))]
+        return [unserialize_tournament(tournament) for tournament in
+                tournament_tables.search(tournament_query.name.matches(str(name), flags=IGNORECASE))]
 
     @classmethod
     def get_all_tournaments(cls):
@@ -242,6 +242,7 @@ class Member:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @property
     def to_dict(self):
         """Serialize an instance of a member"""
         serialized_member = {"surname": self.surname,
@@ -256,7 +257,7 @@ class Member:
         """Add or update a member in the database"""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        member_tables.upsert(self.to_dict(), ((member.surname.matches(self.surname, flags=IGNORECASE)) &
+        member_tables.upsert(self.to_dict, ((member.surname.matches(self.surname, flags=IGNORECASE)) &
                                               (member.name.matches(self.name, flags=IGNORECASE)) &
                                               (member.discriminator == self.discriminator)))
 

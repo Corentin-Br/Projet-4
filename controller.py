@@ -25,11 +25,11 @@ class Controller:
                 members = "\n".join([f"{i + 1}) {member.to_display}" for i, member in enumerate(possible_members)])
                 self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
                                   f"{key_presentation}\n{members}")
-                number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
+                number = self.view.ask("Indiquez le numéro du joueur que vous voulez choisir")
                 if not number.isnumeric():
                     self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
                     return
-                elif int(number) not in range(len(possible_members)):
+                elif int(number) not in range(len(possible_members)+1):
                     self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
                     return
                 else:
@@ -59,10 +59,10 @@ class GlobalController(Controller):
     def __init__(self, view):
         super().__init__(view)
         self.possible_commands = {"créer_tournoi": self.add_tournament,
-                                  "ajouter_acteur": self.add_member,  # Ok
-                                  "changer_classement": self.change_ranking,  # Ok
+                                  "ajouter_acteur": self.add_member,
+                                  "changer_classement": self.change_ranking,
                                   "charger_tournoi": self.load_tournament,
-                                  "afficher_acteurs": self.display_members,  # Ok
+                                  "afficher_acteurs": self.display_members,
                                   "afficher_tournois": self.display_tournaments}
 
     def add_tournament(self, **kwargs):
@@ -224,16 +224,17 @@ class GlobalController(Controller):
             self.view.display("Il n'y a pas de tournoi avec ce nom dans la base de données!")
             return
         else:
-            values = "\n".join([f"{i+1}) {tournament.to_display}" for i, tournament in enumerate(possible_tournaments)])
-            self.view.display(f"Il y a {len(possible_tournaments)} tournoi(s) avec ce nom dans la base de données:")
-            self.view.display("nom   lieu   date(s)   type de tournoi   description")
-            self.view.display(values)
             if len(possible_tournaments) > 1:
+                values = "\n".join(
+                    [f"{i + 1}) {tournament.to_display}" for i, tournament in enumerate(possible_tournaments)])
+                self.view.display(f"Il y a {len(possible_tournaments)} tournoi(s) avec ce nom dans la base de données:")
+                self.view.display("nom   lieu   date(s)   type de tournoi   description")
+                self.view.display(values)
                 number = self.view.ask("Indiquez le numéro du tournoi que vous voulez charger.")
                 if not number.isnumeric():
                     self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
                     return
-                elif int(number) not in range(len(possible_tournaments)):
+                elif int(number) not in range(len(possible_tournaments)+1):
                     self.view.display("Vous avez indiqué un nombre non-valide. L'opération est annulée.")
                     return
                 else:
@@ -248,6 +249,7 @@ class TournamentController(Controller):
         super().__init__(view)
         self.tournament = tournament
         self.possible_commands = {"afficher_joueurs": self.display_players,
+                                  "afficher_participants": self.display_participants,
                                   "afficher_tours": self.display_rounds,
                                   "afficher_matchs": self.display_games,
                                   "ajouter_participant": self.add_participant,
@@ -268,7 +270,7 @@ class TournamentController(Controller):
                              key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"),
                              reverse=(sort_key == "classement"))
         if not players:
-            self.view.display("Il n'y a pas de joueurs!")
+            self.view.display("Les joueurs n'ont pas encore été créés!")
             return
         else:
             self.view.display("numéro   nom complet   points")
@@ -276,10 +278,24 @@ class TournamentController(Controller):
             self.view.display(f"{i+1}) {player.to_display}")
         return
 
+    def display_participants(self):
+        """Display all the participants in the tournament"""
+        participants = self.tournament.participants
+        if not participants:
+            self.view.display("Il n'y a pas encore de participants!")
+        else:
+            participants = "\n".join([f"{i + 1}) {participant.to_display}"
+                                      for i, participant in enumerate(participants)])
+            key_presentation = "nom de famille   prénom   date de naissance   genre   classement   discriminant"
+            self.view.display(f"{key_presentation}\n{participants}")
+
     def display_rounds(self):
         """Display all the rounds in the tournament"""
         rounds = self.tournament.rounds
-        self.view.display("nom   heure de début   heure de fin   nom du match")
+        if not rounds:
+            self.view.display("Il n'y a pas encore de rondes créées dans ce tournoi!")
+        else:
+            self.view.display("nom   heure de début   heure de fin   nom du match")
         for game_round in rounds:
             self.view.display(game_round.to_display)
         return
@@ -289,6 +305,7 @@ class TournamentController(Controller):
         games = [game for tournament_round in self.tournament.rounds for game in tournament_round.games]
         if not games:
             self.view.display("Il n'y a pas de parties dans ce tournoi!")
+            return
         else:
             self.view.display("nom de la partie   score")
         for game in games:
@@ -310,7 +327,8 @@ class TournamentController(Controller):
                 self.view.display(f"{inst.problem_member.name} {inst.problem_member.surname} est déjà dans le tournoi.")
                 return
             else:
-                self.view.display(f"{name} {surname} a bien été ajouté au tournoi en cours.")
+                self.view.display(f"{new_participant.name} {new_participant.surname} "
+                                  f"a bien été ajouté au tournoi en cours.")
         self.tournament.save()
         return
 
