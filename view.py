@@ -28,14 +28,18 @@ def parse(list_of_strings):
     args = []
     kwargs = {}
     for i, string in enumerate(working_list):
-        string = string.lower()
+        string = get_space(string.lower())
         if string == "ignore":
             continue
         if string.startswith("--") and i < len(working_list)-1:
-            kwargs[string.strip("-")] = working_list[i+1].lower()
+            kwargs[string.strip("-")] = get_space(working_list[i+1].lower())
             working_list[i+1] = "ignore"
         elif string.startswith("--") and i == len(working_list)-1:
             args.append(string.strip("-"))
         else:
             args.append(string)
     return command, args, kwargs
+
+
+def get_space(string):
+    return string.replace("\\", " ")

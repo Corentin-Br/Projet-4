@@ -78,6 +78,7 @@ class Tournament:
         """Return a list of participants sorted by score, to be used to display the result of the tournament."""
         return sorted(self.players, key=lambda player: player.points, reverse=True)
 
+    @property
     def to_dict(self):
         """Return a serialized instance of a tournament"""
         serialized_participants = [participant.to_dict() for participant in self.participants]
@@ -85,7 +86,7 @@ class Tournament:
         serialized_players = [player.to_dict(self.participants) for player in self.players]
         serialized_tournament = {"name": self.name,
                                  "place": self.place,
-                                 "date": [date.strftime("%H:%M") for date in self.date],
+                                 "date": "_".join([date.strftime("%d/%m/%Y") for date in self.date]),
                                  "max_round": self.max_round,
                                  "type": self.type,
                                  "description": self.description,
@@ -93,7 +94,7 @@ class Tournament:
                                  "participants": serialized_participants,
                                  "rounds": serialized_rounds,
                                  "players": serialized_players,
-                                 "is_stared": self.is_started}
+                                 "is_started": self.is_started}
         return serialized_tournament
 
     def save(self):
@@ -101,9 +102,10 @@ class Tournament:
         db = TinyDB("db.json")
         tournament_tables = db.table("tournaments")
         tournament = Query()
-        tournament_tables.upsert(self.to_dict(), ((tournament.name.matches(self.name.lower(), flags=IGNORECASE)) &
-                                                  (tournament.place.matches(self.place.lower(), flags=IGNORECASE)) &
-                                                  (tournament.date == [date.strftime("%H:%M") for date in self.date])))
+        tournament_tables.upsert(self.to_dict, ((tournament.name.matches(self.name, flags=IGNORECASE)) &
+                                                (tournament.place.matches(self.place, flags=IGNORECASE)) &
+                                                (tournament.date == "_".join([date.strftime("%d/%m/%Y")
+                                                                              for date in self.date]))))
 
     @classmethod
     def get_tournament(cls, name):
@@ -289,7 +291,7 @@ class Member:
         else:
             return [Member(**member) for member in member_tables.search((member.name.matches(str(name),
                                                                                              flags=IGNORECASE)) &
-                                                                        (member.surname.matches(str(surname).lower(),
+                                                                        (member.surname.matches(str(surname),
                                                                                                 flags=IGNORECASE)))]
 
     @classmethod
