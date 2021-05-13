@@ -21,11 +21,10 @@ class Controller:
             return
         else:
             if len(possible_members) > 1:
-                key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
-                members = "\n".join(["   ".join([f"{i + 1})", member.to_display])
-                                     for i, member in enumerate(possible_members)])
+                key_presentation = "nom de famille   prénom   date de naissance   genre   classement   discriminant"
+                members = "\n".join([f"{i + 1}) {member.to_display}" for i, member in enumerate(possible_members)])
                 self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
-                                  f"{key_presentation} \n {members}")
+                                  f"{key_presentation}\n{members}")
                 number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
                 if not number.isnumeric():
                     self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
@@ -42,14 +41,14 @@ class Controller:
     def execute_command(self, command, args, kwargs):
         """Execute a command"""
         if command.lower() in self.possible_commands:
-            #try:
-            result = self.possible_commands[command.lower()](*args, **kwargs)
-            #except TypeError:
-                #self.view.display("Les paramètres d'entrée ne sont pas corrects. Lisez le readme"
-                                  #"pour obtenir plus d'informations.")
-                #return
-            #else:
-                #return result
+            try:
+                result = self.possible_commands[command.lower()](*args, **kwargs)
+            except TypeError:
+                self.view.display("Les paramètres d'entrée ne sont pas corrects. Lisez le readme"
+                                  "pour obtenir plus d'informations.")
+                return
+            else:
+                return result
         else:
             self.view.display("La fonction n'est pas un appel valide.  Lisez le readme pour"
                               "obtenir plus d'informations.")
@@ -104,11 +103,10 @@ class GlobalController(Controller):
         """Display all the members"""
         all_members = classes.Member.get_all_members()
         if sort_key is not None:
-            all_members.sort(key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "surname"))
-        members = "\n".join(["   ".join([f"{i+1})", member.to_display])
-                             for i, member in enumerate(all_members)])
+            all_members.sort(key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "complete_name"))
+        members = "\n".join([f"{i+1}) {member.to_display}" for i, member in enumerate(all_members)])
         if members:
-            key_presentation = "   ".join(key for key in members[0].__dict__.keys())
+            key_presentation = "nom de famille   prénom   date de naissance   genre   classement   discriminant"
             self.view.display(f"{key_presentation}\n{members}")
         else:
             self.view.display("Il n'y a pas de membres à afficher!")
@@ -117,10 +115,11 @@ class GlobalController(Controller):
     def display_tournaments(self):
         """Display all the tournaments"""
         tournaments = classes.Tournament.get_all_tournaments()
-        tournaments_to_display = "\n".join(["   ".join([f"{i})", tournament.to_display])
+        tournaments_to_display = "\n".join([f"{i}), {tournament.to_display}"
                                             for i, tournament in enumerate(tournaments)])
 
         if tournaments_to_display:
+            self.view.display("nom   lieu   date(s)   type de tournoi   description")
             self.view.display(tournaments_to_display)
         else:
             self.view.display("Il n'y a pas de tournois à afficher!")
@@ -166,7 +165,7 @@ class GlobalController(Controller):
             if add.lower() in validation_words:
                 member.discriminator = member.already_exist
                 self.view.display(f"Cette personne a bien été ajoutée. Pour la distinguer des personnes similaires, un"
-                                  f"discriminant ({member.discriminator}) a été ajouté. Assurez-vous de vous en"
+                                  f" discriminant ({member.discriminator}) a été ajouté. Assurez-vous de vous en"
                                   f"souvenir pour distinguer les personnes!")
             elif add.lower not in refusal_words:
                 self.view.display("Votre réponse n'est pas valide. La personne n'a pas été ajoutée à la base de données"
@@ -223,14 +222,10 @@ class GlobalController(Controller):
             self.view.display("Il n'y a pas de tournoi avec ce nom dans la base de données!")
             return
         else:
-            key_presentation = "   ".join(["name", "place", "date"])
-            values = ["   ".join([tournament.name, tournament.place, "et ".join(tournament.date)])
-                      for tournament in possible_tournaments]
-            value_presentation = ""
-            for i, value in enumerate(values):
-                value_presentation += f"{i + 1}) {value} \n"
+            key_presentation = "name   place   date"
+            values = "\n".join([f"{i+1}) {tournament.to_display}" for i, tournament in enumerate(possible_tournaments)])
             self.view.display(f"Il y a {len(possible_tournaments)} tournoi(s) avec ce nom dans la base de données: \n"
-                              f"{key_presentation} \n {value_presentation}")
+                              f"{key_presentation} \n {values}")
             if len(possible_tournaments) > 1:
                 number = self.view.ask("Indiquez le numéro du tournoi dont vous voulez modifier le classement")
                 if not number.isnumeric():
@@ -269,32 +264,33 @@ class TournamentController(Controller):
         if sort_key is not None:
             players = sorted(players,
                              key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"),
-                             reverse=(sort_key == "points"))
+                             reverse=(sort_key == "classement"))
         if not players:
             self.view.display("Il n'y a pas de joueurs!")
+            return
+        else:
+            self.view.display("numéro   nom complet   points")
         for i, player in enumerate(players):
-            self.view.display("   ".join([f"{i})",
-                                          player.surname,
-                                          player.name,
-                                          str(player.points)]))
+            self.view.display(f"{i+1}) {player.to_display}")
         return
 
     def display_rounds(self):
         """Display all the rounds in the tournament"""
         rounds = self.tournament.rounds
+        self.view.display("nom   heure de début   heure de fin   nom du match")
         for game_round in rounds:
-            self.view.display("   ".join([game_round.name,
-                                          f"a commencé à {game_round.starting_time.strftime('%H:%M')}",
-                                          f"a fini à {game_round.starting_time.strftime('%H:%M')}",
-                                          " et ".join(game.name for game in game_round.games)]))
+            self.view.display(game_round.to_display)
         return
 
     def display_games(self):
         """Display all the games in the tournament"""
         games = [game for tournament_round in self.tournament.rounds for game in tournament_round.games]
+        if not games:
+            self.view.display("Il n'y a pas de parties dans ce tournoi!")
+        else:
+            self.view.display("nom de la partie   score")
         for game in games:
-            self.view.display("   ".join([game.name,
-                                          game.score]))
+            self.view.display(game.to_display)
         return
 
     def add_participant(self, name, surname):
@@ -331,11 +327,8 @@ class TournamentController(Controller):
         if discriminator.isnumeric():
             member = classes.Member.get_member(name, surname, discriminator=int(discriminator))[0]
             self.view.display("Voilà les informations du joueur")
-            self.view.display("  ".join([member.surname,
-                                         member.name,
-                                         member.birthdate.strftime("%d/%m/%Y"),
-                                         member.gender,
-                                         str(member.ranking)]))
+            self.view.display("nom de famille   prénom   date de naissance   genre   classement   discriminant")
+            self.view.display(member.to_display)
         else:
             self.view.display("Le discriminant que vous avez donné n'est pas valide. Il doit s'agir d'un "
                               "nombre entier.")
@@ -401,8 +394,7 @@ class TournamentController(Controller):
         if len(self.tournament.rounds) == self.tournament.max_round and self.tournament.rounds[-1].finished:
             result = self.tournament.result
             for player in result:
-                self.view.display("   ".join([player.name,
-                                              player.points]))
+                self.view.display(player.to_display)
             return "exit"
         else:
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
@@ -439,13 +431,3 @@ def check_number(value):
 
 def check_type(value):
     return value in ["bullet", "blitz", "coup rapide"]
-
-
-# Que doit faire mon contrôleur?
-# ->Afficher message de bienvenue avec commandes de base (help, créer tournoi, ajouter un membre, charger un tournoi,
-# changer classement d'un joueur, afficher tous les membres, afficher tous les joueurs d'un tournois,
-# afficher tous les tournois, afficher toutes les rondes d'un tournoi, afficher tous les matchs d'un tournois.)
-#
-# -> Si on crée un tournoi ou qu'on en charge un:
-#     -> générer ronde suivante
-#     -> Choisir un match et entrer résultat

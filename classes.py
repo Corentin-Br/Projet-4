@@ -114,7 +114,7 @@ class Tournament:
                 tournament_tables.search(tournament_query.name.matches(str(name).lower(), flags=IGNORECASE))]
 
     @classmethod
-    def get_all_members(cls):
+    def get_all_tournaments(cls):
         """Return all tournaments in the database"""
         tournament_tables = TinyDB("db.json").table("tournaments")
         return [Tournament(**tournament) for tournament in tournament_tables.all()]
@@ -170,6 +170,12 @@ class Round:
                       "games": [game.to_dict(players) for game in self.games]}
         return serialized
 
+    def to_display(self):
+        return "   ".join([self.name,
+                           f"a commencé à {self.starting_time.strftime('%H:%M')}",
+                           f"a fini à {self.starting_time.strftime('%H:%M')}",
+                           " et ".join(game.name for game in self.games)])
+
 
 class Game:
     """Class representing a game between two players."""
@@ -205,6 +211,10 @@ class Game:
                       "score": self.score}
         return serialized
 
+    @property
+    def to_display(self):
+        return "   ".join([self.name, self.score])
+
 
 class Member:
     """Represent a member of the chess club."""
@@ -217,6 +227,8 @@ class Member:
         self.ranking = int(kwargs["ranking"])
 
         self.discriminator = kwargs.get("discriminator", 0)
+
+        self.complete_name = self.surname + self.name
 
     # Changing the way equality is defined so that we compare all the attributes instead of the memory address.
     def __eq__(self, other):
@@ -329,6 +341,10 @@ class Player:
             return f"{self.member.name} {self.member.surname} {self.member.discriminator}"
         else:
             return f"{self.member.name} {self.member.surname}"
+
+    @property
+    def to_display(self):
+        return "   ".join([self.name, str(self.points)])
 
 
 def unserialize_member(serialized):
