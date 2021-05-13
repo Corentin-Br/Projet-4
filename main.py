@@ -8,7 +8,7 @@ def main():
     main_controller = current_controller = controller.GlobalController(current_view)
     while True:
         command, args, kwargs = current_view.ask("Que voulez-vous faire?")
-        result = current_controller.does(command, args, kwargs)
+        result = current_controller.execute_command(command, args, kwargs)
         if type(result) == controller.TournamentController:
             current_controller = result
         elif result == "exit":

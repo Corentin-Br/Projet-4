@@ -107,9 +107,10 @@ class Tournament:
 
     @classmethod
     def get_tournament(cls, name):
+        """Return all tournaments with a specific name"""
         tournament_tables = TinyDB("db.json").table("tournaments")
-        tournament = Query()
-        return tournament_tables.search(tournament.name == str(name))
+        tournament_query = Query()
+        return [Tournament(**tournament) for tournament in tournament_tables.search(tournament_query.name == str(name))]
 
 
 class Round:
@@ -295,6 +296,7 @@ class Player:
 
     @property
     def name(self):
+        """Return a string with the name surname and discriminator of a player."""
         if self.member.discriminator != 0:
             return f"{self.member.name} {self.member.surname} {self.member.discriminator}"
         else:

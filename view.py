@@ -6,19 +6,23 @@ class View:
         pass
 
     def display(self, text):
+        """Write text in the console"""
         print(text)
 
     def ask(self, text):
+        """Return the input of an user after a question"""
         answer = input(text)
         return answer
 
     def ask_command(self, text):
+        """Return a tuple that contains a command and its arguments"""
         answer = input(text)
         answer = parse(answer.split())
         return answer
 
 
 def parse(list_of_strings):
+    """Parse a string to get a command and arguments from it"""
     working_list = list_of_strings.copy()
     command = working_list.pop(0)
     args = []

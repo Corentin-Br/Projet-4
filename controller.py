@@ -9,8 +9,10 @@ refusal_words = ["non", "n"]
 
 
 class Controller:
+    """An abstract class that represents a controller"""
     def __init__(self, view):
         self.view = view
+        self.possible_commands = {}
 
     def choose_a_member(self, possible_members):
         """Return a member instance picked by the user"""
@@ -37,14 +39,33 @@ class Controller:
                 number = 0
             return possible_members[number]
 
-    def display_help(self):
-        pass
-        # Send the readme? Or some sort of readme.
+    def execute_command(self, command, args, kwargs):
+        """Execute a command"""
+        if command.lower() in self.possible_commands:
+            try:
+                result = self.possible_commands[command.lower()](*args, **kwargs)
+            except TypeError:
+                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
+                                  "pour obtenir plus d'informations.")
+                return
+            else:
+                return result
+        else:
+            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
+                              "obtenir plus d'informations.")
+            return
 
 
 class GlobalController(Controller):
     def __init__(self, view):
         super().__init__(view)
+        self.possible_commands = {"créer_tournoi": self.add_tournament,
+                                  "ajouter_acteur": self.add_member,
+                                  "changer_classement": self.change_ranking,
+                                  "charger_tournoi": self.load_tournament,
+                                  "afficher_acteurs": self.display_members,
+                                  "afficher_tournois": self.display_tournaments}
+
 
     def add_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
@@ -116,28 +137,6 @@ class GlobalController(Controller):
         else:
             self.view.display("Il n'y a pas de tournois à afficher!")
         return
-
-    def does(self, command, args, kwargs):
-        possible_commands = {"créer_tournoi": self.add_tournament,
-                             "ajouter_acteur": self.add_member,
-                             "changer_classement": self.change_ranking,
-                             "charger_tournoi": self.load_tournament,
-                             "afficher_acteurs": self.display_members,
-                             "afficher_tournois": self.display_tournaments,
-                             "aide": self.display_help}
-        if command.lower() in possible_commands:
-            try:
-                result = possible_commands[command.lower()](*args, **kwargs)
-            except TypeError:
-                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
-                                  "pour obtenir plus d'informations.")
-                return
-            else:
-                return result
-        else:
-            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
-                              "obtenir plus d'informations.")
-            return
 
     def create_tournament_controller(self, tournament):
         """Create a new controller for a tournament"""
@@ -260,6 +259,17 @@ class TournamentController(Controller):
     def __init__(self, tournament, view):
         super().__init__(view)
         self.tournament = tournament
+        self.possible_commands = {"afficher_joueurs": self.display_players,
+                                  "afficher_tours": self.display_rounds,
+                                  "afficher_matchs": self.display_games,
+                                  "ajouter_participant": self.add_participant,
+                                  "enlever_participant": self.remove_participant,
+                                  "détails": self.get_info_player,
+                                  "commencer": self.start,
+                                  "tour_suivant": self.next_round,
+                                  "finir_tour": self.finish_round,
+                                  "résultat": self.give_results,
+                                  "finir_tournoi": self.finish}
 
     def display_players(self, sort_key=None):
         """Display all the players in the tournament"""
@@ -402,33 +412,6 @@ class TournamentController(Controller):
             return "exit"
         else:
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
-            return
-
-    def does(self, command, args, kwargs):
-        possible_commands = {"afficher_joueurs": self.display_players,
-                             "afficher_tours": self.display_rounds,
-                             "afficher_matchs": self.display_games,
-                             "ajouter_participant": self.add_participant,
-                             "enlever_participant": self.remove_participant,
-                             "détails": self.get_info_player,
-                             "commencer": self.start,
-                             "tour_suivant": self.next_round,
-                             "finir_tour": self.finish_round,
-                             "résultat": self.give_results,
-                             "finir_tournoi": self.finish,
-                             "aide": self.display_help}
-        if command.lower() in possible_commands:
-            try:
-                result = possible_commands[command.lower()](*args, **kwargs)
-            except TypeError:
-                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
-                                  "pour obtenir plus d'informations.")
-                return
-            else:
-                return result
-        else:
-            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
-                              "obtenir plus d'informations.")
             return
 
 
