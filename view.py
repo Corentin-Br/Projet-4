@@ -32,7 +32,7 @@ def parse(list_of_strings):
         if string == "ignore":
             continue
         if string.startswith("--") and i < len(working_list)-1:
-            kwargs[string] = working_list[i+1]
+            kwargs[string.strip("-")] = working_list[i+1].lower()
             working_list[i+1] = "ignore"
         elif string.startswith("--") and i == len(working_list)-1:
             args.append(string.strip("-"))

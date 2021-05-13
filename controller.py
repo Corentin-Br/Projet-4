@@ -20,12 +20,12 @@ class Controller:
             self.view.display("Il n'y a personne avec ce nom dans la base de données!")
             return
         else:
-            key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
-            values = ["   ".join([value for value in member.__dict__.values()]) for member in possible_members]
-            value_presentation = "\n".join([f"{i+1}) {value}" for i, value in enumerate(values)])
-            self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
-                              f"{key_presentation} \n {value_presentation}")
             if len(possible_members) > 1:
+                key_presentation = "   ".join(key for key in possible_members[0].__dict__.keys())
+                members = "\n".join(["   ".join([f"{i + 1})", member.to_display])
+                                     for i, member in enumerate(possible_members)])
+                self.view.display(f"Il y a {len(possible_members)} personne(s) avec ce nom dans la base de données: \n"
+                                  f"{key_presentation} \n {members}")
                 number = self.view.ask("Indiquez le numéro du joueur dont vous voulez modifier le classement")
                 if not number.isnumeric():
                     self.view.display("Vous n'avez pas indiqué un nombre. L'opération est annulée.")
@@ -42,16 +42,16 @@ class Controller:
     def execute_command(self, command, args, kwargs):
         """Execute a command"""
         if command.lower() in self.possible_commands:
-            try:
-                result = self.possible_commands[command.lower()](*args, **kwargs)
-            except TypeError:
-                self.view.display("Les paramètres d'entrée ne sont pas corrects. Utilisez 'aide' ou lisez le readme"
-                                  "pour obtenir plus d'informations.")
-                return
-            else:
-                return result
+            #try:
+            result = self.possible_commands[command.lower()](*args, **kwargs)
+            #except TypeError:
+                #self.view.display("Les paramètres d'entrée ne sont pas corrects. Lisez le readme"
+                                  #"pour obtenir plus d'informations.")
+                #return
+            #else:
+                #return result
         else:
-            self.view.display("La fonction n'est pas un appel valide.  Utilisez 'aide' ou lisez le readme pour"
+            self.view.display("La fonction n'est pas un appel valide.  Lisez le readme pour"
                               "obtenir plus d'informations.")
             return
 
@@ -66,7 +66,6 @@ class GlobalController(Controller):
                                   "afficher_acteurs": self.display_members,
                                   "afficher_tournois": self.display_tournaments}
 
-
     def add_tournament(self, **kwargs):
         """Create a new tournament and return the controller that manages it"""
         kwargs = self.fix_tournament_creation(kwargs)
@@ -78,7 +77,10 @@ class GlobalController(Controller):
         """Add a new member with all required fields and make sure they are unique"""
         kwargs = self.fix_member_creation(kwargs)
         new_member = classes.Member(**kwargs)
-        self.add_discriminator(new_member)
+        try:
+            self.add_discriminator(new_member)
+        except NotCreatedError:
+            return
         new_member.save()
         return
 
@@ -100,37 +102,23 @@ class GlobalController(Controller):
 
     def display_members(self, sort_key=None):
         """Display all the members"""
-        members = classes.Member.get_all_members()
+        all_members = classes.Member.get_all_members()
         if sort_key is not None:
-            members = sorted(members, key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "name"))
-        members_to_display = "\n".join(["   ".join([f"{i})",
-                                                    member.surname,
-                                                    member.name,
-                                                    member.birthdate.strftime("%d/%m/%Y"),
-                                                    member.gender,
-                                                    str(member.ranking)])
-                                        for i, member in enumerate(members)
-                                        ]
-                                       )
-        if members_to_display:
-            self.view.display(members_to_display)
+            all_members.sort(key=lambda x: getattr(x, "ranking" if sort_key == "classement" else "surname"))
+        members = "\n".join(["   ".join([f"{i+1})", member.to_display])
+                             for i, member in enumerate(all_members)])
+        if members:
+            key_presentation = "   ".join(key for key in members[0].__dict__.keys())
+            self.view.display(f"{key_presentation}\n{members}")
         else:
             self.view.display("Il n'y a pas de membres à afficher!")
         return
 
     def display_tournaments(self):
         """Display all the tournaments"""
-        tournaments = classes.Tournament.all_tournaments
-        tournaments_to_display = "\n".join(["   ".join([f"{i})",
-                                                        tournament.name,
-                                                        tournament.place,
-                                                        "et ".join([date.strftime("%d/%m/%Y")
-                                                                    for date in tournament.date
-                                                                    ]),
-                                                        tournament.type,
-                                                        tournament.description])
-                                            for i, tournament in enumerate(tournaments)
-                                            ])
+        tournaments = classes.Tournament.get_all_tournaments()
+        tournaments_to_display = "\n".join(["   ".join([f"{i})", tournament.to_display])
+                                            for i, tournament in enumerate(tournaments)])
 
         if tournaments_to_display:
             self.view.display(tournaments_to_display)
@@ -145,7 +133,7 @@ class GlobalController(Controller):
 
     def fix_member_creation(self, data_given):
         """Ask for all missing arguments required to create a member"""
-        arguments_required = {"surname": "Quel est le nom",
+        arguments_required = {"surname": "Quel est le nom de famille",
                               "name": "Quel est le prénom",
                               "birthdate": "Quelle est la date de naissance (jj/mm/aaaa)",
                               "gender": "Quel est le genre",
@@ -183,9 +171,12 @@ class GlobalController(Controller):
             elif add.lower not in refusal_words:
                 self.view.display("Votre réponse n'est pas valide. La personne n'a pas été ajoutée à la base de données"
                                   "")
-                return
+                raise NotCreatedError
             else:
                 self.view.display("La personne n'a pas été ajoutée à la base de données.")
+                raise NotCreatedError
+        else:
+            member.discriminator = 0
         return
 
     def fix_tournament_creation(self, data_given):
@@ -202,7 +193,7 @@ class GlobalController(Controller):
 
         for argument in arguments_required:
             if argument not in data_given:
-                data_given[argument] = self.view.ask(f"{arguments_required[argument]} du nouvel utilisateur?")
+                data_given[argument] = self.view.ask(f"{arguments_required[argument]}")
         data_given = self.check_tournament_arguments(data_given)
         return data_given
 
@@ -211,7 +202,7 @@ class GlobalController(Controller):
         arguments_to_check = {"date": {"check": check_date, "sentence": "La date que vous avez donnée est invalide. "
                                                                         "Elle doit être au format jj/mm/aaaa. S'il y a "
                                                                         "plusieurs dates, séparez-les avec des "
-                                                                        "underscore. Entrez une date valide"},
+                                                                        "underscore. Entrez une date valide."},
                               "max_round": {"check": check_number, "sentence": "Le nombre de rondes doit être un nombre"
                                                                                " entier positif. Entrez une valeur "
                                                                                "correcte."},
@@ -269,7 +260,8 @@ class TournamentController(Controller):
                                   "tour_suivant": self.next_round,
                                   "finir_tour": self.finish_round,
                                   "résultat": self.give_results,
-                                  "finir_tournoi": self.finish}
+                                  "finir_tournoi": self.finish,
+                                  "exit": self.exit}
 
     def display_players(self, sort_key=None):
         """Display all the players in the tournament"""
@@ -278,6 +270,8 @@ class TournamentController(Controller):
             players = sorted(players,
                              key=lambda x: getattr(x, "points" if sort_key == "classement" else "name"),
                              reverse=(sort_key == "points"))
+        if not players:
+            self.view.display("Il n'y a pas de joueurs!")
         for i, player in enumerate(players):
             self.view.display("   ".join([f"{i})",
                                           player.surname,
@@ -413,6 +407,10 @@ class TournamentController(Controller):
         else:
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
             return
+
+    def exit(self):
+        self.view.display("Retour au menu principal!")
+        return "exit"
 
 
 def is_valid_result(result):

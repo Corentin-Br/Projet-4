@@ -2,6 +2,7 @@
 from time import time
 from datetime import datetime
 from random import sample
+from re import IGNORECASE
 
 from tinydb import TinyDB, Query
 
@@ -11,7 +12,6 @@ from exceptions import *
 
 class Tournament:
     """Class representing a complete Tournament."""
-    all_tournaments = {}
 
     def __init__(self, **kwargs):
         self.name = kwargs["name"]
@@ -101,8 +101,8 @@ class Tournament:
         db = TinyDB("db.json")
         tournament_tables = db.table("tournaments")
         tournament = Query()
-        tournament_tables.upsert(self.to_dict(), ((tournament.name == self.name) &
-                                                  (tournament.place == self.place) &
+        tournament_tables.upsert(self.to_dict(), ((tournament.name.matches(self.name.lower(), flags=IGNORECASE)) &
+                                                  (tournament.place.matches(self.place.lower(), flags=IGNORECASE)) &
                                                   (tournament.date == [date.strftime("%H:%M") for date in self.date])))
 
     @classmethod
@@ -110,7 +110,22 @@ class Tournament:
         """Return all tournaments with a specific name"""
         tournament_tables = TinyDB("db.json").table("tournaments")
         tournament_query = Query()
-        return [Tournament(**tournament) for tournament in tournament_tables.search(tournament_query.name == str(name))]
+        return [Tournament(**tournament) for tournament in
+                tournament_tables.search(tournament_query.name.matches(str(name).lower(), flags=IGNORECASE))]
+
+    @classmethod
+    def get_all_members(cls):
+        """Return all tournaments in the database"""
+        tournament_tables = TinyDB("db.json").table("tournaments")
+        return [Tournament(**tournament) for tournament in tournament_tables.all()]
+
+    @property
+    def to_display(self):
+        return "   ".join([self.name,
+                           self.place,
+                           "et ".join([date.strftime("%d/%m/%Y") for date in self.date]),
+                           self.type,
+                           self.description])
 
 
 class Round:
@@ -195,8 +210,8 @@ class Member:
     """Represent a member of the chess club."""
 
     def __init__(self, **kwargs):
-        self.surname = kwargs["surname"]
-        self.name = kwargs["name"]
+        self.surname = kwargs["surname"].upper()
+        self.name = kwargs["name"].capitalize()
         self.birthdate = datetime.strptime(kwargs["birthdate"], "%d/%m/%Y")
         self.gender = kwargs["gender"]
         self.ranking = int(kwargs["ranking"])
@@ -217,7 +232,7 @@ class Member:
         """Serialize an instance of a member"""
         serialized_member = {"surname": self.surname,
                              "name": self.name,
-                             "birthdate": self.birthdate.strftime("%H:%M"),
+                             "birthdate": self.birthdate.strftime("%d/%m/%Y"),
                              "gender": self.gender,
                              "ranking": self.ranking,
                              "discriminator": self.discriminator}
@@ -227,17 +242,26 @@ class Member:
         """Add or update a member in the database"""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        member_tables.upsert(self.to_dict(), ((member.surname == self.surname) &
-                                              (member.name == self.name) &
+        member_tables.upsert(self.to_dict(), ((member.surname.matches(self.surname, flags=IGNORECASE)) &
+                                              (member.name.matches(self.name, flags=IGNORECASE)) &
                                               (member.discriminator == self.discriminator)))
+
+    @property
+    def to_display(self):
+        return "   ".join([self.surname,
+                           self.name,
+                           self.birthdate.strftime("%d/%m/%Y"),
+                           self.gender,
+                           str(self.ranking),
+                           str(self.discriminator)])
 
     @property
     def already_exist(self):
         """Return the number of members in the database that have the same name, surname, birthdate and gender."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return len(member_tables.search((member.surname == str(self.surname)) &
-                                        (member.name == str(self.name))))
+        return len(member_tables.search((member.surname.matches(str(self.surname), flags=IGNORECASE)) &
+                                        (member.name.matches(str(self.name), flags=IGNORECASE))))
 
     @classmethod
     def get_member(cls, name, surname, discriminator=None):
@@ -245,12 +269,16 @@ class Member:
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         if discriminator:
-            return [Member(**member) for member in member_tables.search((member.name == str(name)) &
-                                                                        (member.surname == str(surname)) &
+            return [Member(**member) for member in member_tables.search((member.name.matches(str(name),
+                                                                                             flags=IGNORECASE)) &
+                                                                        (member.surname.matches(str(surname),
+                                                                                                flags=IGNORECASE)) &
                                                                         (member.discriminator == discriminator))]
         else:
-            return [Member(**member) for member in member_tables.search((member.name == str(name)) &
-                                                                        (member.surname == str(surname)))]
+            return [Member(**member) for member in member_tables.search((member.name.matches(str(name),
+                                                                                             flags=IGNORECASE)) &
+                                                                        (member.surname.matches(str(surname).lower(),
+                                                                                                flags=IGNORECASE)))]
 
     @classmethod
     def get_all_members(cls):

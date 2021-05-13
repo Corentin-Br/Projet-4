@@ -47,3 +47,8 @@ class NotInTournamentError(Exception):
 class AlreadyStartedError(Exception):
     """Raised when trying to start a Tournament already started"""
     pass
+
+
+class NotCreatedError(Exception):
+    """Raised when a member should not be created"""
+    pass
