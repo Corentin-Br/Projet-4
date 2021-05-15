@@ -49,9 +49,10 @@ def fix_input(function):
 
 class Controller:
     """An abstract class that represents a controller"""
+    POSSIBLE_COMMANDS = {}
+
     def __init__(self, view):
         self.view = view
-        self.POSSIBLE_COMMANDS = {}
 
     def choose_a_member(self, possible_members):
         """Return a member instance picked by the user"""
@@ -79,13 +80,18 @@ class Controller:
 
     def execute_command(self, command, kwargs):
         """Execute a command"""
-        if command.lower() in self.POSSIBLE_COMMANDS:
-            return getattr(self, self.POSSIBLE_COMMANDS[command.lower()](**kwargs))
+        if command.lower() in self.POSSIBLE_COMMANDS:  # TODO: Once the translation has been done, it needs to be
+            # replaced by a "if hasattr()", POSSIBLE_COMMAND disappear and everything is translated before being given
+            # to the program.
+            # The possible commands will be in the translation and some errors raised in the view directly
+            # (because it won't be able to translate).
+            return getattr(self, self.POSSIBLE_COMMANDS[command.lower()])(**kwargs)
         else:
             self.view.display("La fonction n'est pas un appel valide.  Lisez le readme pour"
                               " obtenir plus d'informations.")
             return
 
+    @fix_input
     def display_members(self, key=None):
         """Display all the members"""
         all_members = classes.Member.get_all_members()
@@ -154,6 +160,7 @@ class GlobalController(Controller):
         self.view.display("Le classement du joueur a été correctement changé!")
         return
 
+    @fix_input
     def load_tournament(self, *, tournament_name_to_load):
         """Load an existing tournament"""
         try:
@@ -166,6 +173,7 @@ class GlobalController(Controller):
         self.view.display("Tournoi chargé!\nVous êtes désormais dans la gestion de ce tournoi")
         return self.create_tournament_controller(tournament)
 
+    @fix_input
     def display_tournaments(self):
         """Display all the tournaments"""
         try:
@@ -256,13 +264,13 @@ class TournamentController(Controller):
         super().__init__(view)
         self.tournament = tournament
 
+    @fix_input
     def display_players(self, key=None):
         """Display all the players in the tournament"""
         players = self.tournament.players
-        if key is not None:
-            players = sorted(players,
-                             key=lambda x: getattr(x, "points" if key == "classement" else "name"),
-                             reverse=(key == "classement"))
+        players = sorted(players,
+                         key=lambda x: getattr(x, key if hasattr(x, key) else None),
+                         reverse=(key == "classement"))
         if not players:
             self.view.display("Les joueurs n'ont pas encore été créés!")
             return
@@ -272,6 +280,7 @@ class TournamentController(Controller):
             self.view.display(f"{i+1}) {player.to_display}")
         return
 
+    @fix_input
     def display_participants(self):
         """Display all the participants in the tournament"""
         participants = self.tournament.participants
@@ -283,6 +292,7 @@ class TournamentController(Controller):
             key_presentation = "nom de famille   prénom   date de naissance   genre   classement   discriminant"
             self.view.display(f"{key_presentation}\n{participants}")
 
+    @fix_input
     def display_rounds(self):
         """Display all the rounds in the tournament"""
         rounds = self.tournament.rounds
@@ -294,6 +304,7 @@ class TournamentController(Controller):
             self.view.display(game_round.to_display)
         return
 
+    @fix_input
     def display_games(self):
         """Display all the games in the tournament"""
         games = [game for tournament_round in self.tournament.rounds for game in tournament_round.games]
@@ -354,6 +365,7 @@ class TournamentController(Controller):
         self.view.display(member.to_display)
         return
 
+    @fix_input
     def start(self):
         """Start the tournament."""
         try:
@@ -367,6 +379,7 @@ class TournamentController(Controller):
             self.tournament.save()
         return
 
+    @fix_input
     def next_round(self):
         """Create the next round."""
         try:
@@ -383,6 +396,7 @@ class TournamentController(Controller):
             self.tournament.save()
         return
 
+    @fix_input
     def finish_round(self):
         """Finish the current round."""
         try:
@@ -418,6 +432,7 @@ class TournamentController(Controller):
 
         return
 
+    @fix_input
     def finish(self):
         """Finish the tournament."""
         if len(self.tournament.rounds) == self.tournament.max_round and self.tournament.rounds[-1].finished:
@@ -430,6 +445,7 @@ class TournamentController(Controller):
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
             return
 
+    @fix_input
     def exit(self):
         """Return to the main menu"""
         self.view.display("Retour au menu principal!")

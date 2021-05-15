@@ -81,14 +81,13 @@ class View:
 
 def parse(param_string):
     """Parse a string to get a command and arguments from it"""
-    # TODO (plus tard): Ajouter commande pour traduire les commandes/arguments (ils sont donnés en X, ils doivent être traduits en anglais pour être utilisés par le code
+    # TODO (plus tard): Ajouter commande pour traduire les commandes/arguments (ils sont donnés en X,
+    #  ils doivent être traduits en anglais pour être utilisés par le code
     command_regex = re.compile(r"^[^ ]+")
     args_regex = re.compile(r"--(?P<name>[^ ]+)\s(?P<value>[^--]+)")
-    command_name = command_regex.search(param_string).group()
-    kwargs = {match["name"]: match["value"].strip() for match in args_regex.finditer(param_string)}
+    command_name = command_regex.search(param_string).group().lower()
+    kwargs = {match["name"].lower(): match["value"].strip() for match in args_regex.finditer(param_string)}
     # value must be stripped of its space because the regex keeps the last space.
     # It's easier to strip the last space than rewrite the regex
     # TODO: add a translate function on "name"
     return command_name, kwargs
-
-
