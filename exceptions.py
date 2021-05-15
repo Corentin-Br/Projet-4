@@ -52,3 +52,15 @@ class AlreadyStartedError(Exception):
 class NotCreatedError(Exception):
     """Raised when a member should not be created"""
     pass
+
+
+class NotInDatabaseError(Exception):
+    """Raised when an invalid id is given"""
+    pass
+
+
+class InvalidTournamentError(Exception):
+    """Raised when a tournament cannot be created"""
+    def __init__(self, serialized_tournament):
+        self.problem = f"{serialized_tournament['name']} {serialized_tournament['date']}"
+    pass

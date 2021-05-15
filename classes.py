@@ -13,21 +13,24 @@ from exceptions import *
 class Tournament:
     """Class representing a complete Tournament."""
 
-    def __init__(self, **kwargs):
-        self.name = kwargs["name"]
-        self.place = kwargs["place"]
-        # the dates are given as a string in the format dd/mm/yyyy_dd/mm/yyyy_.... during the creation of the
+    def __init__(self, *, name, place, date, max_round, participant_amount, tournament_type, description,
+                 participants=None, players=None, rounds=None, is_started=False):
+        self.name = name
+        self.place = place
+        # the dates are given as a string in the format dd/mm/yyyy dd/mm/yyyy_.... during the creation of the
         # tournament.
-        self.date = [datetime.strptime(date, "%d/%m/%Y") for date in kwargs["date"].split("_")]
-        self.max_round = int(kwargs["max_round"])
-        self.type = kwargs["type"]
-        self.description = kwargs["description"]
-        self.participant_amount = int(kwargs["participant_amount"])
+        self.date = [datetime.strptime(date, "%d/%m/%Y") for date in date.split()]
+        self.max_round = int(max_round)
+        self.type = tournament_type
+        self.description = description
+        self.participant_amount = int(participant_amount)
 
-        self.participants = kwargs.get("participants", [])
-        self.players = kwargs.get("players", [])
-        self.rounds = kwargs.get("rounds", [])
-        self.is_started = kwargs.get("is_started", False)
+        self.participants = participants if type(participants) == list else []
+        self.players = players if type(players) == list else []
+        self.rounds = rounds if type(rounds) == list else []
+        # The user COULD send something for those three attributes. So if they do, it's cancelled
+        # because it can't be a list (it's necessarily a string). The user must not be able to change those values.
+        self.is_started = is_started
 
     def add_participant(self, member):
         """Add a participant for the tournament."""
@@ -44,7 +47,9 @@ class Tournament:
 
     def remove_participant(self, member):
         """Remove a participant from the tournament."""
-        if member in self.participants:
+        if self.is_started:
+            raise TournamentStartedError
+        elif member in self.participants:
             self.participants.remove(member)
         else:
             raise NotInTournamentError(member)
@@ -63,9 +68,9 @@ class Tournament:
         """Create a round."""
         if len(self.rounds) == 0 or (len(self.rounds) <= self.max_round and self.rounds[-1].finished):
             starting_time = datetime.fromtimestamp(time()).strftime("%H:%M")
-            new_round = Round(**{"round_number": len(self.rounds) + 1,
-                                 "players": self.players,
-                                 "starting_time": starting_time})
+            new_round = Round(round_number=len(self.rounds) + 1,
+                              players=self.players,
+                              starting_time=starting_time)
             self.rounds.append(new_round)
             new_round.create_games()
         elif not self.rounds[-1].finished:
@@ -81,17 +86,17 @@ class Tournament:
     @property
     def to_dict(self):
         """Return a serialized instance of a tournament"""
-        serialized_participants = [participant.to_dict for participant in self.participants]
+        participants_index = [participant.identifiant for participant in self.participants]
         serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
         serialized_players = [player.to_dict(self.participants) for player in self.players]
         serialized_tournament = {"name": self.name,
                                  "place": self.place,
                                  "date": "_".join([date.strftime("%d/%m/%Y") for date in self.date]),
                                  "max_round": self.max_round,
-                                 "type": self.type,
+                                 "tournament_type": self.type,
                                  "description": self.description,
                                  "participant_amount": self.participant_amount,
-                                 "participants": serialized_participants,
+                                 "participants": participants_index,
                                  "rounds": serialized_rounds,
                                  "players": serialized_players,
                                  "is_started": self.is_started}
@@ -119,7 +124,7 @@ class Tournament:
     def get_all_tournaments(cls):
         """Return all tournaments in the database"""
         tournament_tables = TinyDB("db.json").table("tournaments")
-        return [Tournament(**tournament) for tournament in tournament_tables.all()]
+        return [unserialize_tournament(tournament) for tournament in tournament_tables.all()]
 
     @property
     def to_display(self):
@@ -132,20 +137,21 @@ class Tournament:
 
 class Round:
     """Class representing a round."""
-    def __init__(self, **kwargs):
-        self.players = kwargs["players"]
-        self.number = int(kwargs["round_number"])
-        self.starting_time = kwargs["starting_time"].strptime("%H:%M")
+    def __init__(self, *,  players, round_number, starting_time,
+                 games=None, ending_time="00:00", finished=False):
+        self.players = players
+        self.number = int(round_number)
+        self.starting_time = datetime.strptime(starting_time, "%H:%M")
 
         self.name = f"Round {self.number}"
 
-        self.games = kwargs.get("games", [])
-        self.ending_time = kwargs.get("ending_time", "00:00").strptime("%H:%M")
-        self.finished = kwargs.get("finished", False)
+        self.games = games if games else []
+        self.ending_time = datetime.strptime(ending_time, "%H:%M")
+        self.finished = finished
 
     def create_games(self):
         """Create all games for the round."""
-        players = sorted(self.players, key=lambda player: player.ranking)
+        players = sorted(self.players, key=lambda player: player.member.ranking)
         ecart = len(players) // 2
         if self.number == 1:
             for i in range(ecart):
@@ -153,7 +159,7 @@ class Round:
         else:
             players = sorted(players, key=lambda joueur: joueur.points, reverse=True)
             for pair in make_pairs_unique(create_pairs(players)):
-                self.games.append(Game(**{"players": (pair[0], pair[1])}))
+                self.games.append(Game(players=(pair[0], pair[1])))
 
     def finish(self):
         """Check that all games are over and get the time the round ended at."""
@@ -181,17 +187,16 @@ class Round:
 
 class Game:
     """Class representing a game between two players."""
-    def __init__(self, **kwargs):
-        players = kwargs.get("players", None)
-        if players:
-            self.white_player = kwargs["white_player"]
-            self.black_player = kwargs["black_player"]
+    def __init__(self, players=None, score="0-0", new=True, white_player=None, black_player=None):
+        if not new:
+            self.white_player = white_player
+            self.black_player = black_player
         else:
             players_random = sample(players, k=2)
             self.white_player = players_random[0]
             self.black_player = players_random[1]
         self.name = f"{self.white_player.name} VS {self.black_player.name}"
-        self.score = kwargs.get("score", "0-0")
+        self.score = score
 
     def set_score(self, score):
         """Create the result of the game."""
@@ -221,18 +226,16 @@ class Game:
 class Member:
     """Represent a member of the chess club."""
 
-    def __init__(self, **kwargs):
-        self.surname = kwargs["surname"].upper()
-        self.name = kwargs["name"].capitalize()
-        self.birthdate = datetime.strptime(kwargs["birthdate"], "%d/%m/%Y")
-        self.gender = kwargs["gender"]
-        self.ranking = int(kwargs["ranking"])
-
-        self.discriminator = kwargs.get("discriminator", 0)
-
-        self.complete_name = self.surname + self.name
+    def __init__(self, surname, name, birthdate, gender, ranking, discriminator=0):
+        self.surname = surname.upper()
+        self.name = name.capitalize()
+        self.birthdate = datetime.strptime(birthdate, "%d/%m/%Y")
+        self.gender = gender
+        self.ranking = int(ranking)
+        self.discriminator = discriminator
 
     # Changing the way equality is defined so that we compare all the attributes instead of the memory address.
+    # This makes it much easier to check for a member already participating in a tournament
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
@@ -241,6 +244,10 @@ class Member:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    @property
+    def complete_name(self):
+        return self.surname + self.name
 
     @property
     def to_dict(self):
@@ -258,8 +265,17 @@ class Member:
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         member_tables.upsert(self.to_dict, ((member.surname.matches(self.surname, flags=IGNORECASE)) &
-                                              (member.name.matches(self.name, flags=IGNORECASE)) &
-                                              (member.discriminator == self.discriminator)))
+                                            (member.name.matches(self.name, flags=IGNORECASE)) &
+                                            (member.discriminator == self.discriminator)))
+
+    @property
+    def identifant(self):
+        member_tables = TinyDB("db.json").table("members")
+        member = Query()
+        result = member_tables.get((member.surname.matches(self.surname, flags=IGNORECASE)) &
+                                   (member.name.matches(self.name, flags=IGNORECASE)) &
+                                   (member.discriminator == self.discriminator))
+        return result.doc_id
 
     @property
     def to_display(self):
@@ -275,8 +291,8 @@ class Member:
         """Return the number of members in the database that have the same name, surname, birthdate and gender."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
-        return len(member_tables.search((member.surname.matches(str(self.surname), flags=IGNORECASE)) &
-                                        (member.name.matches(str(self.name), flags=IGNORECASE))))
+        return member_tables.count((member.surname.matches(str(self.surname), flags=IGNORECASE)) &
+                                   (member.name.matches(str(self.name), flags=IGNORECASE)))
 
     @classmethod
     def get_member(cls, name, surname, discriminator=None):
@@ -296,6 +312,15 @@ class Member:
                                                                                                 flags=IGNORECASE)))]
 
     @classmethod
+    def get_member_from_id(cls, identifiant):
+        member_tables = TinyDB("db.json").table("members")
+        if member_tables.contains(doc_id=identifiant):
+            member = member_tables.get(doc_id=identifiant)
+        else:
+            raise NotInDatabaseError
+        return Member(**member)
+
+    @classmethod
     def get_all_members(cls):
         """Return all the members in the database"""
         member_tables = TinyDB("db.json").table("members")
@@ -304,11 +329,11 @@ class Member:
 
 class Player:
     """Represent a player in a tournament."""
-    def __init__(self, **kwargs):
-        self.member = kwargs["member"]
+    def __init__(self, member, people_played_against=None, points=0):
+        self.member = member
 
-        self.people_played_against = kwargs.get("people_played_against", dict())
-        self.points = kwargs.get("points", 0)
+        self.people_played_against = people_played_against if people_played_against else {}
+        self.points = points
 
     def to_dict(self, participants):
         """Serialize an instance of a player"""
@@ -341,9 +366,9 @@ class Player:
     def name(self):
         """Return a string with the name surname and discriminator of a player."""
         if self.member.discriminator != 0:
-            return f"{self.member.name} {self.member.surname} {self.member.discriminator}"
+            return f"{self.member.surname} {self.member.name} {self.member.discriminator}"
         else:
-            return f"{self.member.name} {self.member.surname}"
+            return f"{self.member.surname} {self.member.name}"
 
     @property
     def to_display(self):
@@ -373,7 +398,7 @@ def unserialize_game(serialized, players):
     in the tournament."""
     serialized["white_player"] = players[serialized["white_player_index"]]
     serialized["black_player"] = players[serialized["black_player_index"]]
-    return Game(**serialized)
+    return Game(new=False, **serialized)
 
 
 def unserialize_round(serialized, players):
@@ -390,7 +415,10 @@ def unserialize_round(serialized, players):
 def unserialize_tournament(serialized):
     """Create an instance of a tournament"""
     for i in range(len(serialized["participants"])):
-        serialized["participants"][i] = unserialize_member(serialized["participants"][i])
+        try:
+            serialized["participants"][i] = Member.get_member_from_id(serialized["participants"][i])
+        except NotInDatabaseError:
+            raise InvalidTournamentError(serialized)
     for i in range(len(serialized["players"])):
         serialized["players"][i] = unserialize_player(serialized["players"][i], serialized["participants"])
     for i in range(len(serialized["rounds"])):
