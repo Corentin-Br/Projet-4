@@ -14,7 +14,7 @@ class View:
     @staticmethod
     def ask(text):
         """Return the input of an user after a question"""
-        answer = input(text)
+        answer = input(text).strip()
         return answer
 
     @staticmethod
@@ -54,14 +54,8 @@ class View:
                         "surname_info": "Quel est le nom de famille du joueur dont vous voulez les détails?",
                         "discriminator": "Quel est le discriminant du joueur dont vous voulez les détails?",
                         "match_number": "Quel est le numéro du match dont vous voulez donner le résultat?",
-                        "result": "Quel est le résultat du match?",
-
-
-
-
-
-         }
-        answer = input(text_to_send[argument])
+                        "result": "Quel est le résultat du match?"}
+        answer = input(text_to_send[argument]).strip()
         return answer
 
     @staticmethod
@@ -81,16 +75,13 @@ class View:
                         "result": "Le résultat du match n'est pas valide. Entrez un résultat valide "
                                   "(1-0, 0-1 ou 1/2-1/2).",
                         "match_number": "Le numéro du match doit être un nombre. Entrez un entier positif."}
-        answer = input(text_to_send[argument])
+        answer = input(text_to_send[argument]).strip()
         return answer
+
 
 def parse(param_string):
     """Parse a string to get a command and arguments from it"""
-    #Todo: Remplacer les fonctions qui utilisent des arguments par des arguments mot-clés
-    #Todo : Remplacer les **kwargs en entrée des init de class par des mots-clés directement
-    #Todo (plus tard): Ajouter commande pour traduire les commandes/arguments (ils sont donnés en X, ils doivent être traduits en anglais pour être utilisés par le code
-    #Todo: Remplacer les "commandes_possibles" par la traduction et un getattr()
-    #Todo: Prévenir quand un nombre de joueurs est impair
+    # TODO (plus tard): Ajouter commande pour traduire les commandes/arguments (ils sont donnés en X, ils doivent être traduits en anglais pour être utilisés par le code
     command_regex = re.compile(r"^[^ ]+")
     args_regex = re.compile(r"--(?P<name>[^ ]+)\s(?P<value>[^--]+)")
     command_name = command_regex.search(param_string).group()

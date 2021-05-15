@@ -60,7 +60,12 @@ class NotInDatabaseError(Exception):
 
 
 class InvalidTournamentError(Exception):
-    """Raised when a tournament cannot be created"""
+    """Raised when a tournament cannot be loaded"""
     def __init__(self, serialized_tournament):
         self.problem = f"{serialized_tournament['name']} {serialized_tournament['date']}"
+    pass
+
+
+class OddParticipantError(Exception):
+    """Raised when a tournament has an odd number of participants"""
     pass

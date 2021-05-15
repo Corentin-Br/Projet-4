@@ -24,6 +24,8 @@ class Tournament:
         self.type = tournament_type
         self.description = description
         self.participant_amount = int(participant_amount)
+        if participant_amount % 2 != 0:
+            raise OddParticipantError
 
         self.participants = participants if type(participants) == list else []
         self.players = players if type(players) == list else []

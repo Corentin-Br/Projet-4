@@ -51,7 +51,7 @@ class Controller:
     """An abstract class that represents a controller"""
     def __init__(self, view):
         self.view = view
-        self.possible_commands = {}
+        self.POSSIBLE_COMMANDS = {}
 
     def choose_a_member(self, possible_members):
         """Return a member instance picked by the user"""
@@ -79,8 +79,8 @@ class Controller:
 
     def execute_command(self, command, kwargs):
         """Execute a command"""
-        if command.lower() in self.possible_commands:
-            return self.possible_commands[command.lower()](**kwargs)
+        if command.lower() in self.POSSIBLE_COMMANDS:
+            return getattr(self, self.POSSIBLE_COMMANDS[command.lower()](**kwargs))
         else:
             self.view.display("La fonction n'est pas un appel valide.  Lisez le readme pour"
                               " obtenir plus d'informations.")
@@ -105,25 +105,31 @@ class Controller:
 
 
 class GlobalController(Controller):
+    POSSIBLE_COMMANDS = {"créer_tournoi": "add_tournament",
+                         "ajouter_acteur": "add_member",
+                         "changer_classement": "change_ranking",
+                         "charger_tournoi": "load_tournament",
+                         "afficher_acteurs": "display_members",
+                         "afficher_tournois": "display_tournaments"}
+
     def __init__(self, view):
         super().__init__(view)
-        self.possible_commands = {"créer_tournoi": self.add_tournament,
-                                  "ajouter_acteur": self.add_member,
-                                  "changer_classement": self.change_ranking,
-                                  "charger_tournoi": self.load_tournament,
-                                  "afficher_acteurs": self.display_members,
-                                  "afficher_tournois": self.display_tournaments}
 
     @fix_input
     def add_tournament(self, *, tournament_name, place, tournament_date, max_round, participant_amount, tournament_type,
                        description=""):
         """Create a new tournament and return the controller that manages it"""
-        new_tournament = classes.Tournament(name=tournament_name, place=place, date=tournament_date,
-                                            max_round=max_round, participant_amount=participant_amount,
-                                            tournament_type=tournament_type, description=description)
-        self.view.display("Tournoi créé!\nVous êtes désormais dans la gestion de ce nouveau tournoi.")
-        new_tournament.save()
-        return self.create_tournament_controller(new_tournament)
+        try:
+            new_tournament = classes.Tournament(name=tournament_name, place=place, date=tournament_date,
+                                                max_round=max_round, participant_amount=participant_amount,
+                                                tournament_type=tournament_type, description=description)
+        except OddParticipantError:
+            self.view.display("Vous ne pouvez pas avoir un nombre impair de joueurs. Le tournoi n'a pas été créé.")
+            return
+        else:
+            self.view.display("Tournoi créé!\nVous êtes désormais dans la gestion de ce nouveau tournoi.")
+            new_tournament.save()
+            return self.create_tournament_controller(new_tournament)
 
     @fix_input
     def add_member(self, *, name, surname, birthdate, gender, ranking):
@@ -231,23 +237,24 @@ class GlobalController(Controller):
 
 
 class TournamentController(Controller):
+    POSSIBLE_COMMANDS = {"afficher_joueurs": "display_players",
+                         "afficher_participants": "display_participants",
+                         "afficher_tours": "display_rounds",
+                         "afficher_matchs": "display_games",
+                         "ajouter_participant": "add_participant",
+                         "enlever_participant": "remove_participant",
+                         "détails": "get_info_player",
+                         "commencer": "start",
+                         "tour_suivant": "next_round",
+                         "finir_tour": "finish_round",
+                         "résultat": "give_results",
+                         "finir_tournoi": "finish",
+                         "afficher_acteurs": "display_members",
+                         "exit": "exit"}
+
     def __init__(self, tournament, view):
         super().__init__(view)
         self.tournament = tournament
-        self.possible_commands = {"afficher_joueurs": self.display_players,  # Ok
-                                  "afficher_participants": self.display_participants,  # OK
-                                  "afficher_tours": self.display_rounds,
-                                  "afficher_matchs": self.display_games,
-                                  "ajouter_participant": self.add_participant,
-                                  "enlever_participant": self.remove_participant,
-                                  "détails": self.get_info_player,  # Ok
-                                  "commencer": self.start,
-                                  "tour_suivant": self.next_round,
-                                  "finir_tour": self.finish_round,
-                                  "résultat": self.give_results,
-                                  "finir_tournoi": self.finish,
-                                  "afficher_acteurs": self.display_members,
-                                  "exit": self.exit}  # Ok
 
     def display_players(self, key=None):
         """Display all the players in the tournament"""
@@ -301,6 +308,7 @@ class TournamentController(Controller):
 
     @fix_input
     def add_participant(self, *, participant_name, participant_surname):
+        """Add a participant in the tournament"""
         new_participant = self.choose_a_member(classes.Member.get_member(participant_name, participant_surname))
         if new_participant:
             try:
@@ -322,6 +330,7 @@ class TournamentController(Controller):
 
     @fix_input
     def remove_participant(self, *, name_to_remove, surname_to_remove):
+        """Remove a participant from the tournament"""
         participant_to_remove = self.choose_a_member(classes.Member.get_member(name_to_remove, surname_to_remove))
         if participant_to_remove:
             try:
@@ -338,6 +347,7 @@ class TournamentController(Controller):
 
     @fix_input
     def get_info_player(self, *, name_info, surname_info, discriminator):
+        """Get all the information of a player for disambiguation when players share the same name."""
         member = classes.Member.get_member(name_info, surname_info, discriminator=int(discriminator))[0]
         self.view.display("Voilà les informations du joueur")
         self.view.display("nom de famille   prénom   date de naissance   genre   classement   discriminant")
@@ -345,6 +355,7 @@ class TournamentController(Controller):
         return
 
     def start(self):
+        """Start the tournament."""
         try:
             self.tournament.start()
         except NotEnoughPlayersError:
@@ -357,6 +368,7 @@ class TournamentController(Controller):
         return
 
     def next_round(self):
+        """Create the next round."""
         try:
             self.tournament.create_round()
         except PreviousRoundNotFinishedError:
@@ -372,6 +384,7 @@ class TournamentController(Controller):
         return
 
     def finish_round(self):
+        """Finish the current round."""
         try:
             self.tournament.rounds[-1].finish()
         except GameNotOverError as inst:
@@ -383,6 +396,7 @@ class TournamentController(Controller):
 
     @fix_input
     def give_results(self, *, match_number, result):
+        """Set the result for a match of the current round."""
         match_number = int(match_number)
         if match_number >= len(self.tournament.rounds[-1].matchs):
             self.view.display("Ce match n'existe pas.")
@@ -405,17 +419,19 @@ class TournamentController(Controller):
         return
 
     def finish(self):
+        """Finish the tournament."""
         if len(self.tournament.rounds) == self.tournament.max_round and self.tournament.rounds[-1].finished:
             result = self.tournament.result
             for player in result:
                 self.view.display(player.to_display)
             self.tournament.save()
-            return "exit"
+            self.exit()
         else:
             self.view.display("Le tournoi n'est pas fini! Il reste une ou plusieurs rondes à jouer ou à terminer.")
             return
 
     def exit(self):
+        """Return to the main menu"""
         self.view.display("Retour au menu principal!")
         self.tournament.save()
         return "exit"
