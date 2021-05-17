@@ -24,8 +24,7 @@ def get_enough_players(player_list, current_pairing, number_of_matches_not_done)
     for player in player_list.__reversed__():
         if player in current_pairing and player not in players_to_pair:
             players_to_pair.append(player)
-            players_to_pair.append(current_pairing[player])  # player will have someone else reassigned as its pair. SO
-            # of course
+            players_to_pair.append(current_pairing[player])
             items_found += 1
         if items_found == number_of_matches_not_done:
             break

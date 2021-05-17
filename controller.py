@@ -1,5 +1,6 @@
 """Implement a class that will manage all interactions with the model"""
 from datetime import datetime
+from traceback import print_exc
 import re
 
 import classes
@@ -12,23 +13,29 @@ refusal_words = ["non", "n"]
 def fix_input(function):
     def fixer(controller, **kwargs):
         try:
-            function(controller, **kwargs)
+            result = function(controller, **kwargs)
         except TypeError as inst:
             wrong_arg = excess_argument(inst)
             if wrong_arg:
                 del(kwargs[wrong_arg])
-                controller.view.display(f"Un argument non reconnu était présent, il a été supprimé : "
+                controller.view.display(f"Un argument non reconnu était présent, il a été ignoré: "
                                         f"{wrong_arg}")
-                fixer(controller, **kwargs)
+                return fixer(controller, **kwargs)
             elif not_enough_argument(inst):
                 for argument in not_enough_argument(inst):
                     kwargs[argument] = controller.view.ask_argument(argument)
                 kwargs = checker(controller, **kwargs)
-                fixer(controller, **kwargs)
+                return fixer(controller, **kwargs)
+            else:
+                print_exc()
+        except ValueError:
+            kwargs = checker(controller, **kwargs)
+            return fixer(controller, **kwargs)
+        else:
+            return result
 
     def checker(controller, **kwargs):
         to_check = {"birthdate": check_date,
-                    "tournament_date": check_date,
                     "discriminator": check_number,
                     "match_number": check_number,
                     "max_round": check_number,
@@ -36,6 +43,7 @@ def fix_input(function):
                     "participant_amount": check_number,
                     "ranking": check_number,
                     "result": check_result,
+                    "tournament_date": check_date,
                     "tournament_type": check_type
                     }
         for key in kwargs:
@@ -94,13 +102,7 @@ class Controller:
     @fix_input
     def display_members(self, key=None):
         """Display all the members"""
-        all_members = classes.Member.get_all_members()
-        if key is not None:
-            try:
-                all_members.sort(key=lambda x: getattr(x, key))
-            except AttributeError:
-                self.view.display(f"Il est impossible de trier les joueurs selon {key}.")
-                return
+        all_members = self.sort_check(classes.Member.get_all_members(), key)
         members = "\n".join([f"{i+1}) {member.to_display}" for i, member in enumerate(all_members)])
         if members:
             key_presentation = "nom de famille   prénom   date de naissance   genre   classement   discriminant"
@@ -109,14 +111,24 @@ class Controller:
             self.view.display("Il n'y a pas de membres à afficher!")
         return
 
+    def sort_check(self, elements, key):
+        if key is not None:
+            try:
+                #key = translate.to_english(key)
+                elements.sort(key=lambda x: getattr(x, key), reverse=(key == "points"))
+            except AttributeError:
+                self.view.display(f"Il est impossible de trier selon {key}.")
+                return elements
+        return elements
+
 
 class GlobalController(Controller):
-    POSSIBLE_COMMANDS = {"créer_tournoi": "add_tournament",
-                         "ajouter_acteur": "add_member",
-                         "changer_classement": "change_ranking",
-                         "charger_tournoi": "load_tournament",
-                         "afficher_acteurs": "display_members",
-                         "afficher_tournois": "display_tournaments"}
+    POSSIBLE_COMMANDS = {"créer_tournoi": "add_tournament",  # OK, à revérifier après changements mineurs (comme les autres)
+                         "ajouter_acteur": "add_member",  # OK
+                         "changer_classement": "change_ranking",  # OK
+                         "charger_tournoi": "load_tournament",  # OK
+                         "afficher_acteurs": "display_members",  # OK
+                         "afficher_tournois": "display_tournaments"}  # OK
 
     def __init__(self, view):
         super().__init__(view)
@@ -245,14 +257,15 @@ class GlobalController(Controller):
 
 
 class TournamentController(Controller):
-    POSSIBLE_COMMANDS = {"afficher_joueurs": "display_players",
+    POSSIBLE_COMMANDS = {"afficher_joueurs": "display_players",  # OK
                          "afficher_participants": "display_participants",
-                         "afficher_tours": "display_rounds",
+                         "afficher_tours": "display_rounds",  # OK
+                         "afficher_tour_actuel": "display_current_games",  # OK
                          "afficher_matchs": "display_games",
                          "ajouter_participant": "add_participant",
                          "enlever_participant": "remove_participant",
                          "détails": "get_info_player",
-                         "commencer": "start",
+                         "commencer": "start",  # OK
                          "tour_suivant": "next_round",
                          "finir_tour": "finish_round",
                          "résultat": "give_results",
@@ -267,10 +280,7 @@ class TournamentController(Controller):
     @fix_input
     def display_players(self, key=None):
         """Display all the players in the tournament"""
-        players = self.tournament.players
-        players = sorted(players,
-                         key=lambda x: getattr(x, key if hasattr(x, key) else None),
-                         reverse=(key == "classement"))
+        players = self.sort_check(self.tournament.players, key)
         if not players:
             self.view.display("Les joueurs n'ont pas encore été créés!")
             return
@@ -281,9 +291,9 @@ class TournamentController(Controller):
         return
 
     @fix_input
-    def display_participants(self):
+    def display_participants(self, key=None):
         """Display all the participants in the tournament"""
-        participants = self.tournament.participants
+        participants = self.sort_check(self.tournament.participants, key)
         if not participants:
             self.view.display("Il n'y a pas encore de participants!")
         else:
@@ -293,9 +303,9 @@ class TournamentController(Controller):
             self.view.display(f"{key_presentation}\n{participants}")
 
     @fix_input
-    def display_rounds(self):
+    def display_rounds(self, key=None):
         """Display all the rounds in the tournament"""
-        rounds = self.tournament.rounds
+        rounds = self.sort_check(self.tournament.rounds, key)
         if not rounds:
             self.view.display("Il n'y a pas encore de rondes créées dans ce tournoi!")
         else:
@@ -315,6 +325,14 @@ class TournamentController(Controller):
             self.view.display("nom de la partie   score")
         for game in games:
             self.view.display(game.to_display)
+        return
+
+    @fix_input
+    def display_current_games(self):
+        games = [game for game in self.tournament.rounds[-1].games]
+        self.view.display("nom de la partie   score")
+        for i, game in enumerate(games):
+            self.view.display(f"{i+1}) {game.to_display}")
         return
 
     @fix_input
@@ -359,7 +377,12 @@ class TournamentController(Controller):
     @fix_input
     def get_info_player(self, *, name_info, surname_info, discriminator):
         """Get all the information of a player for disambiguation when players share the same name."""
-        member = classes.Member.get_member(name_info, surname_info, discriminator=int(discriminator))[0]
+        member = classes.Member.get_member(name_info, surname_info, discriminator=int(discriminator))
+        if member:
+            member = member[0]
+        else:
+            self.view.display("Ce joueur n'existe pas!")
+            return
         self.view.display("Voilà les informations du joueur")
         self.view.display("nom de famille   prénom   date de naissance   genre   classement   discriminant")
         self.view.display(member.to_display)
@@ -412,15 +435,15 @@ class TournamentController(Controller):
     def give_results(self, *, match_number, result):
         """Set the result for a match of the current round."""
         match_number = int(match_number)
-        if match_number >= len(self.tournament.rounds[-1].matchs):
+        if match_number >= len(self.tournament.rounds[-1].games):
             self.view.display("Ce match n'existe pas.")
         else:
-            current_match = self.tournament.rounds[-1].matchs[match_number-1]
+            current_match = self.tournament.rounds[-1].games[match_number-1]
             if current_match.score != "0-0":
                 self.view.display("Le résultat du match a déjà été entré.")
             else:
                 answer = self.view.ask(f"Le résultat de {current_match.name} va être {result}. Il ne pourra plus"
-                                       f"être changé après. Êtes-vous sûr de vouloir valider? (o/n)")
+                                       f" être changé après. Êtes-vous sûr de vouloir valider? (o/n)")
                 if answer.lower() in validation_words:
                     current_match.set_score(result)
                     self.view.display("Le résultat a été validé!")
