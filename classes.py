@@ -5,7 +5,7 @@ from random import sample
 
 
 import pairing
-from exceptions import *
+import exceptions
 import db
 import translate
 
@@ -27,7 +27,7 @@ class Tournament:
         self.description = description.capitalize()
         self.participant_amount = int(participant_amount)
         if self.participant_amount % 2 != 0:
-            raise OddParticipantError
+            raise exceptions.OddParticipantError
 
         self.participants = participants if type(participants) == list else []
         self.players = players if type(players) == list else []
@@ -39,31 +39,31 @@ class Tournament:
     def add_participant(self, member):
         """Add a participant for the tournament."""
         if self.is_started:
-            raise TournamentStartedError
+            raise exceptions.TournamentStartedError
         else:
             if len(self.participants) < self.participant_amount:
                 if member not in self.participants:
                     self.participants.append(member)
                 else:
-                    raise AlreadyInTournamentError(member)
+                    raise exceptions.AlreadyInTournamentError(member)
             else:
-                raise TooManyParticipantsError
+                raise exceptions.TooManyParticipantsError
 
     def remove_participant(self, member):
         """Remove a participant from the tournament."""
         if self.is_started:
-            raise TournamentStartedError
+            raise exceptions.TournamentStartedError
         elif member in self.participants:
             self.participants.remove(member)
         else:
-            raise NotInTournamentError(member)
+            raise exceptions.NotInTournamentError(member)
 
     def start(self):
         """Generate the players and prevent adding more participants."""
         if len(self.participants) < self.participant_amount:
-            raise NotEnoughPlayersError
+            raise exceptions.NotEnoughPlayersError
         elif self.is_started:
-            raise AlreadyStartedError
+            raise exceptions.AlreadyStartedError
         else:
             self.players = [Player(**{"member": member}) for member in self.participants]
             self.is_started = True
@@ -71,7 +71,7 @@ class Tournament:
     def create_round(self):
         """Create a round."""
         if not self.is_started:
-            raise TournamentNotStartedError
+            raise exceptions.TournamentNotStartedError
         if len(self.rounds) == 0 or (len(self.rounds) < self.max_round and self.rounds[-1].finished):
             starting_time = datetime.fromtimestamp(time()).strftime("%H:%M")
             new_round = Round(round_number=len(self.rounds) + 1,
@@ -80,9 +80,9 @@ class Tournament:
             self.rounds.append(new_round)
             new_round.create_games()
         elif not self.rounds[-1].finished:
-            raise PreviousRoundNotFinishedError
+            raise exceptions.PreviousRoundNotFinishedError
         elif len(self.rounds) >= self.max_round:
-            raise TooManyRoundsError
+            raise exceptions.TooManyRoundsError
 
     @property
     def result(self):
@@ -119,9 +119,10 @@ class Tournament:
     def already_exist(self):
         """Return a boolean determining if the tournament already exists."""
         return db.tournament_tables.count((db.query.name == self.name) &
-                                          (db.query.place == self.place)&
+                                          (db.query.place == self.place) &
                                           (db.query.date == " ".join([date.strftime("%d/%m/%Y")
                                                                       for date in self.date]))) != 0
+
     @classmethod
     def get_tournament(cls, name: str):
         """Return all tournaments with a specific name."""
@@ -172,10 +173,10 @@ class Round:
     def finish(self):
         """Check that all games are over and get the time the round ended at."""
         if self.finished:
-            raise AlreadyFinishedError
+            raise exceptions.AlreadyFinishedError
         for game in self.games:
             if game.score == "0-0":
-                raise GameNotOverError(game)
+                raise exceptions.GameNotOverError(game)
         self.ending_time = datetime.fromtimestamp(time())
         self.finished = True
 
@@ -321,7 +322,7 @@ class Member:
         if db.member_tables.contains(doc_id=identifiant):
             member = db.member_tables.get(doc_id=identifiant)
         else:
-            raise NotInDatabaseError
+            raise exceptions.NotInDatabaseError
         return Member(**member)
 
     @classmethod
@@ -417,8 +418,8 @@ def unserialize_tournament(serialized):
     """Create an instance of a tournament."""
     try:
         participants = [Member.get_member_from_id(participant) for participant in serialized["participants"]]
-    except NotInDatabaseError:
-        raise InvalidTournamentError(serialized)
+    except exceptions.NotInDatabaseError:
+        raise exceptions.InvalidTournamentError(serialized)
     players = [unserialize_player(player, participants) for player in serialized["players"]]
     return Tournament(name=serialized["name"], place=serialized["place"], date=serialized["date"],
                       max_round=serialized["max_round"], participant_amount=serialized["participant_amount"],

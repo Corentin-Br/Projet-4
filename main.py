@@ -5,6 +5,7 @@ import translate
 WELCOME_TEXT = translate.data["welcome"]
 ASK_TEXT = translate.data["main_ask"]
 
+
 def main():
     current_view = view.View()
     current_view.display(WELCOME_TEXT)

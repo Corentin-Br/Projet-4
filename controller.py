@@ -3,7 +3,7 @@ import re
 
 import classes
 import translate
-from exceptions import *
+import exceptions
 
 VALIDATION_WORDS = translate.data["yes"]
 REFUSAL_WORDS = translate.data["no"]
@@ -130,14 +130,14 @@ class GlobalController(Controller):
         super().__init__(view)
 
     @fix_input
-    def add_tournament(self, *, tournament_name, place, tournament_date, max_round, participant_amount, tournament_type,
-                       description=""):
+    def add_tournament(self, *, tournament_name, place, tournament_date, max_round, participant_amount,
+                       tournament_type, description=""):
         """Create a new tournament and return the controller that manages it."""
         try:
             new_tournament = classes.Tournament(name=tournament_name, place=place, date=tournament_date,
                                                 max_round=max_round, participant_amount=participant_amount,
                                                 tournament_type=tournament_type, description=description)
-        except OddParticipantError:
+        except exceptions.OddParticipantError:
             self.view.display(SENTENCES["odd_number"])
             return
         else:
@@ -154,7 +154,7 @@ class GlobalController(Controller):
         new_member = classes.Member(name=name, surname=surname, birthdate=birthdate, gender=gender, ranking=ranking)
         try:
             self.add_discriminator(new_member)
-        except NotCreatedError:
+        except exceptions.NotCreatedError:
             return
         new_member.save()
         self.view.display(SENTENCES["member_added"])
@@ -176,7 +176,7 @@ class GlobalController(Controller):
         """Load an existing tournament."""
         try:
             tournament = self.choose_a_tournament(classes.Tournament.get_tournament(tournament_name_to_load))
-        except InvalidTournamentError:
+        except exceptions.InvalidTournamentError:
             self.view.display(SENTENCES["can't_charge_tournament"])
             return
         if not tournament:
@@ -189,7 +189,7 @@ class GlobalController(Controller):
         """Display all the tournaments."""
         try:
             tournaments = classes.Tournament.get_all_tournaments()
-        except InvalidTournamentError as inst:
+        except exceptions.InvalidTournamentError as inst:
             self.view.display(SENTENCES["can't_charge_tournament_critical"].format(problem=inst.problem))
             return
         tournaments_to_display = "\n".join([f"{i+1}) {tournament.to_display}"
@@ -216,10 +216,10 @@ class GlobalController(Controller):
                 self.view.display(SENTENCES["added_but_exist"].format(number=member.discriminator))
             elif add.lower() not in REFUSAL_WORDS:
                 self.view.display(SENTENCES["invalid_member_answer"])
-                raise NotCreatedError
+                raise exceptions.NotCreatedError
             else:
                 self.view.display(SENTENCES["not_added"])
-                raise NotCreatedError
+                raise exceptions.NotCreatedError
         else:
             member.discriminator = 0
         return
@@ -331,13 +331,13 @@ class TournamentController(Controller):
         if new_participant:
             try:
                 self.tournament.add_participant(new_participant)
-            except TournamentStartedError:
+            except exceptions.TournamentStartedError:
                 self.view.display(SENTENCES["tournament_started"])
                 return
-            except TooManyParticipantsError:
+            except exceptions.TooManyParticipantsError:
                 self.view.display(SENTENCES["enough_participants"])
                 return
-            except AlreadyInTournamentError as inst:
+            except exceptions.AlreadyInTournamentError as inst:
                 self.view.display(SENTENCES["already_in_tournament"].format(name=inst.problem_member.name,
                                                                             surname=inst.problem_member.surname))
                 return
@@ -354,9 +354,9 @@ class TournamentController(Controller):
         if participant_to_remove:
             try:
                 self.tournament.remove_participant(participant_to_remove)
-            except TournamentStartedError:
+            except exceptions.TournamentStartedError:
                 self.view.display(SENTENCES["tournament_started"])
-            except NotInTournamentError as inst:
+            except exceptions.NotInTournamentError as inst:
                 self.view.display(SENTENCES["not_in_tournament"].format(name=inst.problem_member.name,
                                                                         surname=inst.problem_member.surname,
                                                                         number=inst.problem_member.discriminator))
@@ -385,9 +385,9 @@ class TournamentController(Controller):
         """Start the tournament."""
         try:
             self.tournament.start()
-        except NotEnoughPlayersError:
+        except exceptions.NotEnoughPlayersError:
             self.view.display(SENTENCES["not_enough_players"])
-        except AlreadyStartedError:
+        except exceptions.AlreadyStartedError:
             self.view.display(SENTENCES["tournament_started"])
         else:
             self.view.display(SENTENCES["tournament_launched"])
@@ -399,11 +399,11 @@ class TournamentController(Controller):
         """Create the next round."""
         try:
             self.tournament.create_round()
-        except PreviousRoundNotFinishedError:
+        except exceptions.PreviousRoundNotFinishedError:
             self.view.display(SENTENCES["round_not_finished"])
-        except TooManyRoundsError:
+        except exceptions.TooManyRoundsError:
             self.view.display(SENTENCES["all_rounds_played"])
-        except TournamentNotStartedError:
+        except exceptions.TournamentNotStartedError:
             self.view.display(SENTENCES["tournament_not_started"])
         else:
             self.view.display(SENTENCES["round_created"])
@@ -418,9 +418,9 @@ class TournamentController(Controller):
         """Finish the current round."""
         try:
             self.tournament.rounds[-1].finish()
-        except GameNotOverError as inst:
+        except exceptions.GameNotOverError as inst:
             self.view.display(SENTENCES["game_not_finished"].format(name=inst.game_not_finished.name))
-        except AlreadyFinishedError:
+        except exceptions.AlreadyFinishedError:
             self.view.display(SENTENCES["round_already_finished"])
         else:
             self.view.display(SENTENCES["round_finished"])
