@@ -7,6 +7,9 @@ from random import sample
 import pairing
 from exceptions import *
 import db
+import translate
+
+VALID_TIME_CONTROLS = translate.data["valid_types"]
 
 
 class Tournament:
@@ -112,6 +115,13 @@ class Tournament:
                                                    (db.query.date == " ".join([date.strftime("%d/%m/%Y")
                                                                               for date in self.date]))))
 
+    @property
+    def already_exist(self):
+        """Return a boolean determining if the tournament already exists."""
+        return db.tournament_tables.count((db.query.name == self.name) &
+                                          (db.query.place == self.place)&
+                                          (db.query.date == " ".join([date.strftime("%d/%m/%Y")
+                                                                      for date in self.date]))) != 0
     @classmethod
     def get_tournament(cls, name: str):
         """Return all tournaments with a specific name."""
@@ -227,7 +237,7 @@ class Game:
 
     @property
     def to_display(self):
-        """Astring that contains all relevant data of the game to be displayed."""
+        """A string that contains all relevant data of the game to be displayed."""
         return "   ".join([self.name, self.score])
 
 
@@ -467,4 +477,4 @@ def check_number(value):
 
 def check_type(value):
     """Return a boolean indicating if the input is a valid type of time control."""
-    return value.lower() in ["bullet", "blitz", "coup rapide"]
+    return value.lower() in VALID_TIME_CONTROLS
