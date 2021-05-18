@@ -74,3 +74,8 @@ class OddParticipantError(Exception):
 class AlreadyFinishedError(Exception):
     """Raised when trying to finish a round that is already finished."""
     pass
+
+
+class TournamentNotStartedError(Exception):
+    """Raised when trying to create a round when the tournament hasn't started yet."""
+    pass

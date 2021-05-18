@@ -10,7 +10,7 @@ refusal_words = ["non", "n"]
 
 def fix_input(function):
     """Check inputs to make sure they allow the function to run."""
-    def fixer(controller: Controller, **kwargs):
+    def fixer(controller, **kwargs):
         """Remove unused arguments and ask required arguments if they are not already in the input."""
         try:
             result = function(controller, **kwargs)
@@ -131,12 +131,12 @@ class Controller:
 class GlobalController(Controller):
     """A class managing the interactions with the main menu."""
     POSSIBLE_COMMANDS = {"créer_tournoi": "add_tournament",
-                         "ajouter_acteur": "add_member",  # OK
-                         "changer_classement": "change_ranking",  # OK
-                         "charger_tournoi": "load_tournament",  # OK
-                         "afficher_acteurs": "display_members",  # OK
+                         "ajouter_acteur": "add_member",
+                         "changer_classement": "change_ranking",
+                         "charger_tournoi": "load_tournament",
+                         "afficher_acteurs": "display_members",
                          "afficher_tournois": "display_tournaments",
-                         "fermer": "close"}  # OK
+                         "fermer": "close"}  
 
     def __init__(self, view):
         super().__init__(view)
@@ -430,6 +430,8 @@ class TournamentController(Controller):
             self.view.display("La ronde précédente n'a pas été terminée.")
         except TooManyRoundsError:
             self.view.display("Toutes les rondes prévues ont déjà été jouées!")
+        except TournamentNotStartedError:
+            self.view.display("Le tournoi n'est pas encore lancé!")
         else:
             self.view.display("La prochaine ronde a été créée!")
             game_round = self.tournament.rounds[-1]

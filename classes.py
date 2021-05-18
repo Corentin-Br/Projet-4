@@ -3,10 +3,10 @@ from time import time
 from datetime import datetime
 from random import sample
 
-from tinydb import TinyDB, Query
 
 import pairing
 from exceptions import *
+import db
 
 
 class Tournament:
@@ -67,6 +67,8 @@ class Tournament:
 
     def create_round(self):
         """Create a round."""
+        if not self.is_started:
+            raise TournamentNotStartedError
         if len(self.rounds) == 0 or (len(self.rounds) < self.max_round and self.rounds[-1].finished):
             starting_time = datetime.fromtimestamp(time()).strftime("%H:%M")
             new_round = Round(round_number=len(self.rounds) + 1,
@@ -105,34 +107,28 @@ class Tournament:
 
     def save(self):
         """Add or update a tournament in the database."""
-        db = TinyDB("db.json")
-        tournament_tables = db.table("tournaments")
-        tournament = Query()
-        tournament_tables.upsert(self.to_dict, ((tournament.name == self.name) &
-                                                (tournament.place == self.place) &
-                                                (tournament.date == "_".join([date.strftime("%d/%m/%Y")
+        db.tournament_tables.upsert(self.to_dict, ((db.query.name == self.name) &
+                                                   (db.query.place == self.place) &
+                                                   (db.query.date == " ".join([date.strftime("%d/%m/%Y")
                                                                               for date in self.date]))))
 
     @classmethod
     def get_tournament(cls, name: str):
         """Return all tournaments with a specific name."""
-        tournament_tables = TinyDB("db.json").table("tournaments")
-        tournament_query = Query()
         return [unserialize_tournament(tournament) for tournament in
-                tournament_tables.search(tournament_query.name == name.capitalize())]
+                db.tournament_tables.search(db.query.name == name.capitalize())]
 
     @classmethod
     def get_all_tournaments(cls):
         """Return all tournaments in the database."""
-        tournament_tables = TinyDB("db.json").table("tournaments")
-        return [unserialize_tournament(tournament) for tournament in tournament_tables.all()]
+        return [unserialize_tournament(tournament) for tournament in db.tournament_tables.all()]
 
     @property
     def to_display(self):
         """A string that contains all relevant data of the tournament to be displayed."""
         return "   ".join([self.name,
                            self.place,
-                           "et ".join([date.strftime("%d/%m/%Y") for date in self.date]),
+                           " et ".join([date.strftime("%d/%m/%Y") for date in self.date]),
                            self.type,
                            self.description])
 
@@ -270,20 +266,16 @@ class Member:
 
     def save(self):
         """Add or update a member in the database."""
-        member_tables = TinyDB("db.json").table("members")
-        member = Query()
-        member_tables.upsert(self.to_dict, ((member.surname == self.surname) &
-                                            (member.name == self.name) &
-                                            (member.discriminator == self.discriminator)))
+        db.member_tables.upsert(self.to_dict, ((db.query.surname == self.surname) &
+                                               (db.query.name == self.name) &
+                                               (db.query.discriminator == self.discriminator)))
 
     @property
     def identifiant(self):
         """The unique identifiant in the database."""
-        member_tables = TinyDB("db.json").table("members")
-        member = Query()
-        result = member_tables.get((member.surname == self.surname) &
-                                   (member.name == self.name) &
-                                   (member.discriminator == self.discriminator))
+        result = db.member_tables.get((db.query.surname == self.surname) &
+                                      (db.query.name == self.name) &
+                                      (db.query.discriminator == self.discriminator))
         return result.doc_id
 
     @property
@@ -299,30 +291,25 @@ class Member:
     @property
     def already_exist(self):
         """Return the number of members in the database that have the same name and surname."""
-        member_tables = TinyDB("db.json").table("members")
-        member = Query()
-        return member_tables.count((member.surname == self.surname) &
-                                   (member.name == self.name))
+        return db.member_tables.count((db.query.surname == self.surname) &
+                                      (db.query.name == self.name))
 
     @classmethod
     def get_member(cls, name: str, surname: str, discriminator=None):
         """Return all the members with a specific name and surname in the database."""
-        member_tables = TinyDB("db.json").table("members")
-        member = Query()
         if discriminator:
-            return [Member(**member) for member in member_tables.search((member.name == name.capitalize()) &
-                                                                        (member.surname == surname.upper()) &
-                                                                        (member.discriminator == discriminator))]
+            return [Member(**member) for member in db.member_tables.search((db.query.name == name.capitalize()) &
+                                                                           (db.query.surname == surname.upper()) &
+                                                                           (db.query.discriminator == discriminator))]
         else:
-            return [Member(**member) for member in member_tables.search((member.name == name.capitalize()) &
-                                                                        (member.surname == surname.upper()))]
+            return [Member(**member) for member in db.member_tables.search((db.query.name == name.capitalize()) &
+                                                                           (db.query.surname == surname.upper()))]
 
     @classmethod
     def get_member_from_id(cls, identifiant):
         """Return a member from the identifiant in the database."""
-        member_tables = TinyDB("db.json").table("members")
-        if member_tables.contains(doc_id=identifiant):
-            member = member_tables.get(doc_id=identifiant)
+        if db.member_tables.contains(doc_id=identifiant):
+            member = db.member_tables.get(doc_id=identifiant)
         else:
             raise NotInDatabaseError
         return Member(**member)
@@ -330,8 +317,7 @@ class Member:
     @classmethod
     def get_all_members(cls):
         """Return all the members in the database."""
-        member_tables = TinyDB("db.json").table("members")
-        return [Member(**member) for member in member_tables.all()]
+        return [Member(**member) for member in db.member_tables.all()]
 
 
 class Player:
