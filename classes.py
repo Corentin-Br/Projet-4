@@ -67,7 +67,7 @@ class Tournament:
 
     def create_round(self):
         """Create a round."""
-        if len(self.rounds) == 0 or (len(self.rounds) <= self.max_round and self.rounds[-1].finished):
+        if len(self.rounds) == 0 or (len(self.rounds) < self.max_round and self.rounds[-1].finished):
             starting_time = datetime.fromtimestamp(time()).strftime("%H:%M")
             new_round = Round(round_number=len(self.rounds) + 1,
                               players=self.players,
@@ -76,23 +76,23 @@ class Tournament:
             new_round.create_games()
         elif not self.rounds[-1].finished:
             raise PreviousRoundNotFinishedError
-        elif len(self.rounds) > self.max_round:
+        elif len(self.rounds) >= self.max_round:
             raise TooManyRoundsError
 
     @property
     def result(self):
-        """Return a list of participants sorted by score, to be used to display the result of the tournament."""
+        """A list of participants sorted by score, to be used to display the result of the tournament."""
         return sorted(self.players, key=lambda player: player.points, reverse=True)
 
     @property
     def to_dict(self):
-        """Return a serialized instance of a tournament"""
+        """Return a serialized instance of a tournament."""
         participants_index = [participant.identifiant for participant in self.participants]
         serialized_rounds = [game_round.to_dict(self.players) for game_round in self.rounds]
         serialized_players = [player.to_dict(self.participants) for player in self.players]
         serialized_tournament = {"name": self.name,
                                  "place": self.place,
-                                 "date": "_".join([date.strftime("%d/%m/%Y") for date in self.date]),
+                                 "date": " ".join([date.strftime("%d/%m/%Y") for date in self.date]),
                                  "max_round": self.max_round,
                                  "tournament_type": self.type,
                                  "description": self.description,
@@ -104,7 +104,7 @@ class Tournament:
         return serialized_tournament
 
     def save(self):
-        """Add or update a tournament in the database"""
+        """Add or update a tournament in the database."""
         db = TinyDB("db.json")
         tournament_tables = db.table("tournaments")
         tournament = Query()
@@ -115,7 +115,7 @@ class Tournament:
 
     @classmethod
     def get_tournament(cls, name: str):
-        """Return all tournaments with a specific name"""
+        """Return all tournaments with a specific name."""
         tournament_tables = TinyDB("db.json").table("tournaments")
         tournament_query = Query()
         return [unserialize_tournament(tournament) for tournament in
@@ -123,12 +123,13 @@ class Tournament:
 
     @classmethod
     def get_all_tournaments(cls):
-        """Return all tournaments in the database"""
+        """Return all tournaments in the database."""
         tournament_tables = TinyDB("db.json").table("tournaments")
         return [unserialize_tournament(tournament) for tournament in tournament_tables.all()]
 
     @property
     def to_display(self):
+        """A string that contains all relevant data of the tournament to be displayed."""
         return "   ".join([self.name,
                            self.place,
                            "et ".join([date.strftime("%d/%m/%Y") for date in self.date]),
@@ -164,6 +165,8 @@ class Round:
 
     def finish(self):
         """Check that all games are over and get the time the round ended at."""
+        if self.finished:
+            raise AlreadyFinishedError
         for game in self.games:
             if game.score == "0-0":
                 raise GameNotOverError(game)
@@ -171,7 +174,7 @@ class Round:
         self.finished = True
 
     def to_dict(self, players):
-        """Serialize an instance of a round"""
+        """Serialize an instance of a round."""
         serialized = {"round_number": self.number,
                       "starting_time": self.starting_time.strftime("%H:%M"),
                       "ending_time": self.ending_time.strftime("%H:%M"),
@@ -181,10 +184,10 @@ class Round:
 
     @property
     def to_display(self):
-        return "   ".join([self.name,
-                           f"a commencé à {self.starting_time.strftime('%H:%M')}",
-                           f"a fini à {self.ending_time.strftime('%H:%M')}",
-                           " et ".join(game.name for game in self.games)])
+        """A string that contains all relevant data of the round to be displayed."""
+        games = '\n'.join([game.name for game in self.games])
+        return f"{self.name}    a commencé à {self.starting_time.strftime('%H:%M')}   " \
+               f"a fini à {self.ending_time.strftime('%H:%M')}\n{games}"
 
 
 class Game:
@@ -197,10 +200,14 @@ class Game:
         else:
             self.white_player = white_player
             self.black_player = black_player
-        self.name = f"{self.white_player.name} VS {self.black_player.name}"
         self.score = score
 
-    def set_score(self, score):
+    @property
+    def name(self):
+        """A string containing the name of the two players, with the white player first."""
+        return f"{self.white_player.name} VS {self.black_player.name}"
+
+    def set_score(self, score: str):
         """Create the result of the game."""
         self.score = score
         self.give_points()
@@ -210,11 +217,13 @@ class Game:
     def give_points(self):
         """Give the points to the players."""
         score = self.score.split("-")
+        if score[0] == score[1]:
+            score = (0.5, 0.5)
         self.white_player.points += float(score[0])
         self.black_player.points += float(score[1])
 
     def to_dict(self, players):
-        """Serialize an instance of a game"""
+        """Serialize an instance of a game."""
         serialized = {"white_player_index": players.index(self.white_player),
                       "black_player_index": players.index(self.black_player),
                       "score": self.score}
@@ -222,6 +231,7 @@ class Game:
 
     @property
     def to_display(self):
+        """Astring that contains all relevant data of the game to be displayed."""
         return "   ".join([self.name, self.score])
 
 
@@ -248,12 +258,8 @@ class Member:
         return not self.__eq__(other)
 
     @property
-    def complete_name(self):
-        return self.surname + self.name
-
-    @property
     def to_dict(self):
-        """Serialize an instance of a member"""
+        """Serialize an instance of a member."""
         serialized_member = {"surname": self.surname,
                              "name": self.name,
                              "birthdate": self.birthdate.strftime("%d/%m/%Y"),
@@ -263,7 +269,7 @@ class Member:
         return serialized_member
 
     def save(self):
-        """Add or update a member in the database"""
+        """Add or update a member in the database."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         member_tables.upsert(self.to_dict, ((member.surname == self.surname) &
@@ -272,6 +278,7 @@ class Member:
 
     @property
     def identifiant(self):
+        """The unique identifiant in the database."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         result = member_tables.get((member.surname == self.surname) &
@@ -281,6 +288,7 @@ class Member:
 
     @property
     def to_display(self):
+        """Return a string that contains all relevant data of the member to be displayed."""
         return "   ".join([self.surname,
                            self.name,
                            self.birthdate.strftime("%d/%m/%Y"),
@@ -290,7 +298,7 @@ class Member:
 
     @property
     def already_exist(self):
-        """Return the number of members in the database that have the same name, surname, birthdate and gender."""
+        """Return the number of members in the database that have the same name and surname."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         return member_tables.count((member.surname == self.surname) &
@@ -298,7 +306,7 @@ class Member:
 
     @classmethod
     def get_member(cls, name: str, surname: str, discriminator=None):
-        """Return all the members with a specific name and surname in the database"""
+        """Return all the members with a specific name and surname in the database."""
         member_tables = TinyDB("db.json").table("members")
         member = Query()
         if discriminator:
@@ -311,6 +319,7 @@ class Member:
 
     @classmethod
     def get_member_from_id(cls, identifiant):
+        """Return a member from the identifiant in the database."""
         member_tables = TinyDB("db.json").table("members")
         if member_tables.contains(doc_id=identifiant):
             member = member_tables.get(doc_id=identifiant)
@@ -320,7 +329,7 @@ class Member:
 
     @classmethod
     def get_all_members(cls):
-        """Return all the members in the database"""
+        """Return all the members in the database."""
         member_tables = TinyDB("db.json").table("members")
         return [Member(**member) for member in member_tables.all()]
 
@@ -334,7 +343,7 @@ class Player:
         self.points = points
 
     def to_dict(self, participants):
-        """Serialize an instance of a player"""
+        """Serialize an instance of a player."""
         serialized_player = {"member_index": participants.index(self.member),
                              "people_played_against": self.people_played_against,
                              "points": self.points}
@@ -342,25 +351,25 @@ class Player:
 
     def least_played_from(self, players):
         """Return the player who has been faced the least in a list."""
-        comparison_list = [(player, self.people_played_against.get(player.member.identifiant, 0)) for player in players]
+        comparison_list = [(player, self.people_played_against.get(player.name, 0)) for player in players]
         comparison_list.sort(key=lambda element: element[0].points, reverse=True)
         comparison_list.sort(key=lambda element: element[1])
         return comparison_list[0][0]
 
     def played_against(self, player):
         """Change the amount of time a player has been faced by another."""
-        if player.member.identifiant in self.people_played_against:
-            self.people_played_against[player.member.identifiant] += 1
+        if player.name in self.people_played_against:
+            self.people_played_against[player.name] += 1
         else:
-            self.people_played_against[player.member.identifiant] = 1
+            self.people_played_against[player.name] = 1
 
     def has_played_against(self, player):
         """Return a boolean determining if two players have faced each other."""
-        return player.member.identifiant in self.people_played_against
+        return player.name in self.people_played_against
 
     @property
     def name(self):
-        """Return a string with the name surname and discriminator of a player."""
+        """Return a string with the name, surname and discriminator of a player."""
         if self.member.discriminator != 0:
             return f"{self.member.surname} {self.member.name} {self.member.discriminator}"
         else:
@@ -368,6 +377,7 @@ class Player:
 
     @property
     def to_display(self):
+        """Return a string that contains all relevant data of the player to be displayed."""
         return "   ".join([self.name, str(self.points)])
 
 
@@ -408,7 +418,7 @@ def unserialize_round(serialized, players):
 
 
 def unserialize_tournament(serialized):
-    """Create an instance of a tournament"""
+    """Create an instance of a tournament."""
     try:
         participants = [Member.get_member_from_id(participant) for participant in serialized["participants"]]
     except NotInDatabaseError:
@@ -432,10 +442,43 @@ def create_pairs(player_list):
 
 
 def make_pairs_unique(pairs):
-    """Turn a dictionary pairing players into a list that can be used to generate rounds"""
+    """Turn a dictionary pairing players into a list that can be used to generate rounds."""
     unique_pairs = []
     for key, value in pairs.items():
         j = {key, value}
         if j not in unique_pairs:
-            unique_pairs.append(tuple(j))
+            unique_pairs.append(j)
+    unique_pairs = [tuple(element) for element in unique_pairs]
     return unique_pairs
+
+
+def check_result(result):
+    """Return a boolean indicating if the input is a valid result or not."""
+    valid_results = {"0-1", "1-0", "1/2-1/2"}
+    return result in valid_results
+
+
+def check_date(value):
+    """Return a boolean indicating if the input can be turned into one or several dates or not."""
+    potential_dates = value.split()
+    for date in potential_dates:
+        try:
+            datetime.strptime(date, "%d/%m/%Y")
+        except ValueError:
+            return False
+    return True
+
+
+def check_number(value):
+    """Return a boolean indicating if the input can be turned into an integer or not."""
+    try:
+        int(value)
+    except ValueError:
+        return False
+    else:
+        return int(value) > 0
+
+
+def check_type(value):
+    """Return a boolean indicating if the input is a valid type of time control."""
+    return value.lower() in ["bullet", "blitz", "coup rapide"]

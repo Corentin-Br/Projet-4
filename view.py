@@ -7,25 +7,25 @@ class View:
 
     @staticmethod
     def display(text):
-        """Write text in the console"""
+        """Write text in the console."""
         print(text)
 
     @staticmethod
     def ask(text):
-        """Return the input of an user after a question"""
+        """Return the input of an user after a question."""
         answer = input(text).strip()
         return answer
 
     @staticmethod
     def ask_command(text):
-        """Return a tuple that contains a command and its arguments"""
+        """Return a tuple that contains a command and its arguments."""
         answer = input(text)
         answer = parse(answer)
         return answer
 
     @staticmethod
     def ask_argument(argument):
-        """Return an input from the user for a specific argument"""
+        """Return an input from the user for a specific argument."""
         text_to_send = {"birthdate": "Quel est la date de naissance du nouveau membre?",
                         "discriminator": "Quel est le discriminant du joueur dont vous voulez les détails?",
                         "gender": "Quel est le genre du nouveau membre?",
@@ -59,7 +59,7 @@ class View:
 
     @staticmethod
     def ask_correct_argument(argument):
-        """Return an input from the user for a specific argument to fix an invalid argument."""
+        """Return an input from the user for a specific argument that was invalid."""
         text_to_send = {"birthdate": "La date de naissance n'est pas valide, entrez une date correcte "
                                      "(au format jj/mm/aaaa).",
                         "discriminator": "Le discriminant du joueur doit être un nombre positif. "
@@ -81,7 +81,7 @@ class View:
 
 
 def parse(param_string):
-    """Parse a string to get a command and arguments from it"""
+    """Parse a string to get a command and arguments from it."""
     # TODO (plus tard): Ajouter commande pour traduire les commandes/arguments (ils sont donnés en X,
     #  ils doivent être traduits en anglais pour être utilisés par le code
     param = param_string.split("--")

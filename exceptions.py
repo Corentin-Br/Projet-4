@@ -1,4 +1,4 @@
-"""Implement all exceptions needed"""
+"""Implement all exceptions needed."""
 
 
 class TooManyParticipantsError(Exception):
@@ -45,27 +45,32 @@ class NotInTournamentError(Exception):
 
 
 class AlreadyStartedError(Exception):
-    """Raised when trying to start a Tournament already started"""
+    """Raised when trying to start a Tournament already started."""
     pass
 
 
 class NotCreatedError(Exception):
-    """Raised when a member should not be created"""
+    """Raised when a member should not be created."""
     pass
 
 
 class NotInDatabaseError(Exception):
-    """Raised when an invalid id is given"""
+    """Raised when an invalid id is given."""
     pass
 
 
 class InvalidTournamentError(Exception):
-    """Raised when a tournament cannot be loaded"""
+    """Raised when a tournament cannot be loaded."""
     def __init__(self, serialized_tournament):
         self.problem = f"{serialized_tournament['name']} {serialized_tournament['date']}"
     pass
 
 
 class OddParticipantError(Exception):
-    """Raised when a tournament has an odd number of participants"""
+    """Raised when a tournament has an odd number of participants."""
+    pass
+
+
+class AlreadyFinishedError(Exception):
+    """Raised when trying to finish a round that is already finished."""
     pass
