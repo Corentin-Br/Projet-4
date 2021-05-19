@@ -25,7 +25,7 @@ def fix_input(function):
                 return fixer(controller, **kwargs)
             elif not_enough_argument(inst):
                 for argument in not_enough_argument(inst):
-                    kwargs[argument] = controller.view.ask_argument(argument)
+                    kwargs[argument] = controller.view.ask_argument(f"{argument}_{function.__name__}")
                 kwargs, has_changed = checker(controller, **kwargs)
                 return fixer(controller, **kwargs)
             else:
@@ -44,11 +44,10 @@ def fix_input(function):
                     "discriminator": classes.check_number,
                     "match_number": classes.check_number,
                     "max_round": classes.check_number,
-                    "new_ranking": classes.check_number,
-                    "participant_amount": classes.check_number,
                     "ranking": classes.check_number,
+                    "participant_amount": classes.check_number,
                     "result": classes.check_result,
-                    "tournament_date": classes.check_date,
+                    "date": classes.check_date,
                     "tournament_type": classes.check_type
                     }
         has_changed = False
@@ -130,11 +129,11 @@ class GlobalController(Controller):
         super().__init__(view)
 
     @fix_input
-    def add_tournament(self, *, tournament_name, place, tournament_date, max_round, participant_amount,
+    def add_tournament(self, *, name, place, date, max_round, participant_amount,
                        tournament_type, description=""):
         """Create a new tournament and return the controller that manages it."""
         try:
-            new_tournament = classes.Tournament(name=tournament_name, place=place, date=tournament_date,
+            new_tournament = classes.Tournament(name=name, place=place, date=date,
                                                 max_round=max_round, participant_amount=participant_amount,
                                                 tournament_type=tournament_type, description=description)
         except exceptions.OddParticipantError:
@@ -161,21 +160,21 @@ class GlobalController(Controller):
         return
 
     @fix_input
-    def change_ranking(self, *, name_ranking, surname_ranking, new_ranking):
+    def change_ranking(self, *, name, surname, ranking):
         """Change the ranking of a single player."""
-        member = self.choose_a_member(classes.Member.get_member(name_ranking, surname_ranking))
+        member = self.choose_a_member(classes.Member.get_member(name, surname))
         if not member:
             return
-        member.ranking = new_ranking
+        member.ranking = ranking
         member.save()
         self.view.display(SENTENCES["ranking_changed"])
         return
 
     @fix_input
-    def load_tournament(self, *, tournament_name_to_load):
+    def load_tournament(self, *, name):
         """Load an existing tournament."""
         try:
-            tournament = self.choose_a_tournament(classes.Tournament.get_tournament(tournament_name_to_load))
+            tournament = self.choose_a_tournament(classes.Tournament.get_tournament(name))
         except exceptions.InvalidTournamentError:
             self.view.display(SENTENCES["can't_charge_tournament"])
             return
@@ -325,9 +324,9 @@ class TournamentController(Controller):
                 self.view.display("")
 
     @fix_input
-    def add_participant(self, *, participant_name, participant_surname):
+    def add_participant(self, *, name, surname):
         """Add a participant to the tournament."""
-        new_participant = self.choose_a_member(classes.Member.get_member(participant_name, participant_surname))
+        new_participant = self.choose_a_member(classes.Member.get_member(name, surname))
         if new_participant:
             try:
                 self.tournament.add_participant(new_participant)
@@ -342,15 +341,15 @@ class TournamentController(Controller):
                                                                             surname=inst.problem_member.surname))
                 return
             else:
-                self.view.display(SENTENCES["has_been_added"].format(name=participant_name.capitalize(),
-                                                                     surname=participant_surname.upper()))
+                self.view.display(SENTENCES["has_been_added"].format(name=name.capitalize(),
+                                                                     surname=surname.upper()))
         self.tournament.save()
         return
 
     @fix_input
-    def remove_participant(self, *, name_to_remove, surname_to_remove):
+    def remove_participant(self, *, name, surname):
         """Remove a participant from the tournament."""
-        participant_to_remove = self.choose_a_member(classes.Member.get_member(name_to_remove, surname_to_remove))
+        participant_to_remove = self.choose_a_member(classes.Member.get_member(name, surname))
         if participant_to_remove:
             try:
                 self.tournament.remove_participant(participant_to_remove)
@@ -361,15 +360,15 @@ class TournamentController(Controller):
                                                                         surname=inst.problem_member.surname,
                                                                         number=inst.problem_member.discriminator))
             else:
-                self.view.display(SENTENCES["has_been_removed"].format(name=name_to_remove.capitalize(),
-                                                                       surname=surname_to_remove.upper()))
+                self.view.display(SENTENCES["has_been_removed"].format(name=name.capitalize(),
+                                                                       surname=surname.upper()))
         self.tournament.save()
         return
 
     @fix_input
-    def get_info_player(self, *, name_info, surname_info, discriminator):
+    def get_info_player(self, *, name, surname, discriminator):
         """Get all the information of a player for disambiguation when players share the same name."""
-        member = classes.Member.get_member(name_info, surname_info, discriminator=int(discriminator))
+        member = classes.Member.get_member(name, surname, discriminator=int(discriminator))
         if member:
             member = member[0]
         else:
