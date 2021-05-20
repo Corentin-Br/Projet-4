@@ -1,5 +1,5 @@
 """Implement a class that will manage interactions with the user"""
-import translate
+from models import translate
 
 ASK_ARGUMENT = translate.data["ask_argument"]
 FIX_ARGUMENT = translate.data["fix_argument"]
@@ -24,8 +24,7 @@ class View:
     def ask_command(text):
         """Return a tuple that contains a command and its arguments."""
         answer = input(text)
-        answer = parse(answer)
-        return answer
+        return parse(answer)
 
     @staticmethod
     def ask_argument(argument):

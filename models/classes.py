@@ -4,10 +4,7 @@ from datetime import datetime
 from random import sample
 
 
-import pairing
-import exceptions
-import db
-import translate
+from models import pairing, exceptions, db, translate
 
 VALID_TIME_CONTROLS = translate.data["valid_types"]
 

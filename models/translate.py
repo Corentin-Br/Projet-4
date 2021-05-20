@@ -1,6 +1,6 @@
 """Implement functions to translate strings according to a pre-existing dictionary"""
 from json import load
-with open("fr.json", "r") as file:
+with open("models/fr.json", "r") as file:
     data = load(file)
 
 

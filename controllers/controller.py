@@ -1,9 +1,7 @@
 """Implement a class that will manage all interactions with the model"""
 import re
 
-import classes
-import translate
-import exceptions
+from models import classes, translate, exceptions
 
 VALIDATION_WORDS = translate.data["yes"]
 REFUSAL_WORDS = translate.data["no"]
@@ -63,7 +61,6 @@ def fix_input(function):
 
 class Controller:
     """An abstract class that represents a controller."""
-    POSSIBLE_COMMANDS = {}
 
     def __init__(self, view):
         self.view = view
@@ -90,14 +87,6 @@ class Controller:
             else:
                 number = 0
             return possible_members[number]
-
-    def execute_command(self, command, kwargs):
-        """Execute a command."""
-        if hasattr(self, command):
-            return getattr(self, command)(**kwargs)
-        else:
-            self.view.display(SENTENCES["not_a_valid_function"])
-            return
 
     @fix_input
     def display_members(self, key=None):
@@ -156,7 +145,8 @@ class GlobalController(Controller):
         except exceptions.NotCreatedError:
             return
         new_member.save()
-        self.view.display(SENTENCES["member_added"])
+        if new_member.discriminator == 0:  # This prevents displaying twice the confirmation message
+            self.view.display(SENTENCES["member_added"])
         return
 
     @fix_input
@@ -193,7 +183,6 @@ class GlobalController(Controller):
             return
         tournaments_to_display = "\n".join([f"{i+1}) {tournament.to_display}"
                                             for i, tournament in enumerate(tournaments)])
-
         if tournaments_to_display:
             self.view.display(HEADERS["tournament_display"])
             self.view.display(tournaments_to_display)

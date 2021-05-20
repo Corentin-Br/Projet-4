@@ -1,6 +1,6 @@
 from tinydb import TinyDB, Query
 
-database = TinyDB("db.json")
+database = TinyDB("models/db.json")
 tournament_tables = database.table("tournaments")
 member_tables = database.table("members")
 query = Query()
