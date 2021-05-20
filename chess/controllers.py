@@ -2,7 +2,7 @@
 import re
 from datetime import datetime
 
-from models import classes, translate, exceptions
+from models import core, translate, exceptions
 
 VALIDATION_WORDS = translate.data["yes"]
 REFUSAL_WORDS = translate.data["no"]
@@ -93,7 +93,7 @@ class Controller:
     @fix_input
     def display_members(self, key=None):
         """Display all the members."""
-        all_members = self.sort_check(classes.Member.get_all_members(), key)
+        all_members = self.sort_check(core.Member.get_all_members(), key)
         members = "\n".join([f"{i+1}) {member.to_display}" for i, member in enumerate(all_members)])
         if members:
             self.view.display(f"{HEADERS['member_choice']}\n{members}")
@@ -124,9 +124,9 @@ class GlobalController(Controller):
                        tournament_type, description=""):
         """Create a new tournament and return the controller that manages it."""
         try:
-            new_tournament = classes.Tournament(name=name, place=place, date=date,
-                                                max_round=max_round, participant_amount=participant_amount,
-                                                tournament_type=tournament_type, description=description)
+            new_tournament = core.Tournament(name=name, place=place, date=date,
+                                             max_round=max_round, participant_amount=participant_amount,
+                                             tournament_type=tournament_type, description=description)
         except exceptions.OddParticipantError:
             self.view.display(SENTENCES["odd_number"])
             return
@@ -141,7 +141,7 @@ class GlobalController(Controller):
     @fix_input
     def add_member(self, *, name, surname, birthdate, gender, ranking):
         """Add a new member with all required fields and make sure they are unique."""
-        new_member = classes.Member(name=name, surname=surname, birthdate=birthdate, gender=gender, ranking=ranking)
+        new_member = core.Member(name=name, surname=surname, birthdate=birthdate, gender=gender, ranking=ranking)
         try:
             self.add_discriminator(new_member)
         except exceptions.NotCreatedError:
@@ -154,7 +154,7 @@ class GlobalController(Controller):
     @fix_input
     def change_ranking(self, *, name, surname, ranking):
         """Change the ranking of a single player."""
-        member = self.choose_a_member(classes.Member.get_member(name, surname))
+        member = self.choose_a_member(core.Member.get_member(name, surname))
         if not member:
             return
         member.ranking = ranking
@@ -166,7 +166,7 @@ class GlobalController(Controller):
     def load_tournament(self, *, name):
         """Load an existing tournament."""
         try:
-            tournament = self.choose_a_tournament(classes.Tournament.get_tournament(name))
+            tournament = self.choose_a_tournament(core.Tournament.get_tournament(name))
         except exceptions.InvalidTournamentError:
             self.view.display(SENTENCES["can't_charge_tournament"])
             return
@@ -179,7 +179,7 @@ class GlobalController(Controller):
     def display_tournaments(self):
         """Display all the tournaments."""
         try:
-            tournaments = classes.Tournament.get_all_tournaments()
+            tournaments = core.Tournament.get_all_tournaments()
         except exceptions.InvalidTournamentError as inst:
             self.view.display(SENTENCES["can't_charge_tournament_critical"].format(problem=inst.problem))
             return
@@ -317,7 +317,7 @@ class TournamentController(Controller):
     @fix_input
     def add_participant(self, *, name, surname):
         """Add a participant to the tournament."""
-        new_participant = self.choose_a_member(classes.Member.get_member(name, surname))
+        new_participant = self.choose_a_member(core.Member.get_member(name, surname))
         if new_participant:
             try:
                 self.tournament.add_participant(new_participant)
@@ -340,7 +340,7 @@ class TournamentController(Controller):
     @fix_input
     def remove_participant(self, *, name, surname):
         """Remove a participant from the tournament."""
-        participant_to_remove = self.choose_a_member(classes.Member.get_member(name, surname))
+        participant_to_remove = self.choose_a_member(core.Member.get_member(name, surname))
         if participant_to_remove:
             try:
                 self.tournament.remove_participant(participant_to_remove)
@@ -359,7 +359,7 @@ class TournamentController(Controller):
     @fix_input
     def get_info_player(self, *, name, surname, discriminator):
         """Get all the information of a player for disambiguation when players share the same name."""
-        member = classes.Member.get_member(name, surname, discriminator=int(discriminator))
+        member = core.Member.get_member(name, surname, discriminator=int(discriminator))
         if member:
             member = member[0]
         else:
