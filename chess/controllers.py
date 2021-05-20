@@ -107,9 +107,11 @@ class Controller:
             try:
                 key = translate.translate_arguments(key)
                 elements.sort(key=lambda x: getattr(x, key), reverse=(key == "points"))
-            except AttributeError:
+            except (AttributeError, ValueError):  # AttributeError deals with problem with the sort,
+                # ValueError with the translatiob
                 self.view.display(SENTENCES["can't_sort"].format(key=key))
                 return elements
+
         return elements
 
 
@@ -239,6 +241,7 @@ class GlobalController(Controller):
                 number = 0
             return possible_tournaments[number]
 
+    @fix_input
     def close(self):
         """Exit the program entirely"""
         self.view.display(SENTENCES["ending"])
@@ -278,9 +281,9 @@ class TournamentController(Controller):
             self.view.display(f"{HEADERS['member_choice']}\n{participants}")
 
     @fix_input
-    def display_rounds(self, key=None):
+    def display_rounds(self):
         """Display all the rounds in the tournament."""
-        rounds = self.sort_check(self.tournament.rounds, key)
+        rounds = self.tournament.rounds
         if not rounds:
             self.view.display(SENTENCES["no_rounds"])
         else:
