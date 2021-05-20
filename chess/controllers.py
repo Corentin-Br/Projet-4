@@ -2,13 +2,13 @@
 import re
 from datetime import datetime
 
-from models import core, translate, exceptions
+from models import core, exceptions
 
-VALIDATION_WORDS = translate.data["yes"]
-REFUSAL_WORDS = translate.data["no"]
-SENTENCES = translate.data["controller"]
-HEADERS = translate.data["headers"]
-VALID_TIME_CONTROLS = translate.data["valid_types"]
+VALIDATION_WORDS = core.TRANSLATION["yes"]
+REFUSAL_WORDS = core.TRANSLATION["no"]
+SENTENCES = core.TRANSLATION["controller"]
+HEADERS = core.TRANSLATION["headers"]
+VALID_TIME_CONTROLS = core.TRANSLATION["valid_types"]
 
 
 def fix_input(function):
@@ -21,19 +21,15 @@ def fix_input(function):
             wrong_arg = excess_argument(inst)
             if wrong_arg:
                 del(kwargs[wrong_arg])
-                controller.view.display(SENTENCES['unknown_argument'].format(argument=wrong_arg))
+                controller.view.display(SENTENCES['unknown_argument'](wrong_arg))
                 return fixer(controller, **kwargs)
             elif not_enough_argument(inst):
                 for argument in not_enough_argument(inst):
                     kwargs[argument] = controller.view.ask_argument(f"{argument}_{function.__name__}")
-                kwargs, has_changed = checker(controller, **kwargs)
+                kwargs = checker(controller, **kwargs)
                 return fixer(controller, **kwargs)
-            else:
-                raise TypeError(inst)
-        except ValueError as inst:
-            kwargs, has_changed = checker(controller, **kwargs)
-            if not has_changed:
-                raise ValueError(inst)
+        except ValueError:
+            kwargs = checker(controller, **kwargs)
             return fixer(controller, **kwargs)
         else:
             return result
@@ -50,13 +46,11 @@ def fix_input(function):
                     "date": check_date,
                     "tournament_type": check_type
                     }
-        has_changed = False
         for key in kwargs:
             if key in to_check:
-                has_changed = True
                 while not to_check[key](kwargs[key]):
                     kwargs[key] = controller.view.ask_correct_argument(key)
-        return kwargs, has_changed
+        return kwargs
 
     return fixer
 
@@ -75,7 +69,7 @@ class Controller:
         else:
             if len(possible_members) > 1:
                 members = "\n".join([f"{i + 1}) {member.to_display}" for i, member in enumerate(possible_members)])
-                self.view.display(SENTENCES['existing_members'].format(number=len(possible_members)) + "\n" +
+                self.view.display(SENTENCES['existing_members'](len(possible_members)) + "\n" +
                                   HEADERS['member_choice'] + "\n" + f"{members}")
                 number = self.view.ask(SENTENCES["player_number"])
                 if not number.isnumeric():
@@ -105,11 +99,11 @@ class Controller:
         """Sort according to key if key is an attribute of all elements of a list."""
         if key is not None:
             try:
-                key = translate.translate_arguments(key)
+                key = core.TRANSLATION["argument_names"](key)
                 elements.sort(key=lambda x: getattr(x, key), reverse=(key == "points"))
             except (AttributeError, ValueError):  # AttributeError deals with problem with the sort,
                 # ValueError with the translatiob
-                self.view.display(SENTENCES["can't_sort"].format(key=key))
+                self.view.display(SENTENCES["can't_sort"](key))
                 return elements
 
         return elements
@@ -183,7 +177,7 @@ class GlobalController(Controller):
         try:
             tournaments = core.Tournament.get_all_tournaments()
         except exceptions.InvalidTournamentError as inst:
-            self.view.display(SENTENCES["can't_charge_tournament_critical"].format(problem=inst.problem))
+            self.view.display(SENTENCES["can't_charge_tournament_critical"](inst.problem))
             return
         tournaments_to_display = "\n".join([f"{i+1}) {tournament.to_display}"
                                             for i, tournament in enumerate(tournaments)])
@@ -205,7 +199,7 @@ class GlobalController(Controller):
             add = self.view.ask(SENTENCES["member_already_exist"])
             if add.lower() in VALIDATION_WORDS:
                 member.discriminator = member.already_exist
-                self.view.display(SENTENCES["added_but_exist"].format(number=member.discriminator))
+                self.view.display(SENTENCES["added_but_exist"](member.discriminator))
             elif add.lower() not in REFUSAL_WORDS:
                 self.view.display(SENTENCES["invalid_member_answer"])
                 raise exceptions.NotCreatedError
@@ -225,7 +219,7 @@ class GlobalController(Controller):
             if len(possible_tournaments) > 1:
                 values = "\n".join(
                     [f"{i + 1}) {tournament.to_display}" for i, tournament in enumerate(possible_tournaments)])
-                self.view.display(SENTENCES["existing_tournaments"].format(number=len(possible_tournaments)))
+                self.view.display(SENTENCES["existing_tournaments"](len(possible_tournaments)))
                 self.view.display(HEADERS["tournament_display"])
                 self.view.display(values)
                 number = self.view.ask(SENTENCES["tournament_number"])
@@ -331,12 +325,12 @@ class TournamentController(Controller):
                 self.view.display(SENTENCES["enough_participants"])
                 return
             except exceptions.AlreadyInTournamentError as inst:
-                self.view.display(SENTENCES["already_in_tournament"].format(name=inst.problem_member.name,
-                                                                            surname=inst.problem_member.surname))
+                self.view.display(SENTENCES["already_in_tournament"](inst.problem_member.name,
+                                                                     inst.problem_member.surname))
                 return
             else:
-                self.view.display(SENTENCES["has_been_added"].format(name=name.capitalize(),
-                                                                     surname=surname.upper()))
+                self.view.display(SENTENCES["has_been_added"](name.capitalize(),
+                                                              surname.upper()))
         self.tournament.save()
         return
 
@@ -350,12 +344,11 @@ class TournamentController(Controller):
             except exceptions.TournamentStartedError:
                 self.view.display(SENTENCES["tournament_started"])
             except exceptions.NotInTournamentError as inst:
-                self.view.display(SENTENCES["not_in_tournament"].format(name=inst.problem_member.name,
-                                                                        surname=inst.problem_member.surname,
-                                                                        number=inst.problem_member.discriminator))
+                self.view.display(SENTENCES["not_in_tournament"](inst.problem_member.name,
+                                                                 inst.problem_member.surname,
+                                                                 inst.problem_member.discriminator))
             else:
-                self.view.display(SENTENCES["has_been_removed"].format(name=name.capitalize(),
-                                                                       surname=surname.upper()))
+                self.view.display(SENTENCES["has_been_removed"](name.capitalize(), surname.upper()))
         self.tournament.save()
         return
 
@@ -412,7 +405,7 @@ class TournamentController(Controller):
         try:
             self.tournament.rounds[-1].finish()
         except exceptions.GameNotOverError as inst:
-            self.view.display(SENTENCES["game_not_finished"].format(name=inst.game_not_finished.name))
+            self.view.display(SENTENCES["game_not_finished"](inst.game_not_finished.name))
         except exceptions.AlreadyFinishedError:
             self.view.display(SENTENCES["round_already_finished"])
         else:
@@ -435,8 +428,7 @@ class TournamentController(Controller):
             if current_match.score != "0-0":
                 self.view.display(SENTENCES["game_already_has_score"])
             else:
-                answer = self.view.ask(SENTENCES["validation_result"].format(name=current_match.name,
-                                                                             result=result))
+                answer = self.view.ask(SENTENCES["validation_result"](current_match.name, result))
                 if answer.lower() in VALIDATION_WORDS:
                     current_match.set_score(result)
                     self.view.display(SENTENCES["result_ok"])

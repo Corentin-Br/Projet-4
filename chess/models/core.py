@@ -4,7 +4,8 @@ from datetime import datetime
 from random import sample
 
 
-from . import pairing, exceptions, db
+from . import pairing, exceptions, db, translate
+TRANSLATION = translate.TRANSLATION
 
 
 class Tournament:

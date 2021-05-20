@@ -1,10 +1,10 @@
 import controllers
 import views
-from models import translate
+from models.core import TRANSLATION
 
-WELCOME_TEXT = translate.data["welcome"]
-ASK_TEXT = translate.data["main_ask"]
-INVALID_COMMAND_ERROR = translate.data["invalid_command"]
+WELCOME_TEXT = TRANSLATION["welcome"]
+ASK_TEXT = TRANSLATION["main_ask"]
+INVALID_COMMAND_ERROR = TRANSLATION["invalid_command"]
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
     while running:
         try:
             command, kwargs = current_view.ask_command(ASK_TEXT)
-        except ValueError:
+        except KeyError:
             current_view.display(INVALID_COMMAND_ERROR)
         else:
             result = getattr(current_controller, command)(**kwargs)

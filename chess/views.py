@@ -1,8 +1,8 @@
 """Implement a class that will manage interactions with the user"""
-from models import translate
+from models.core import TRANSLATION
 
-ASK_ARGUMENT = translate.data["ask_argument"]
-FIX_ARGUMENT = translate.data["fix_argument"]
+ASK_ARGUMENT = TRANSLATION["ask_argument"]
+FIX_ARGUMENT = TRANSLATION["fix_argument"]
 
 
 class View:
@@ -42,7 +42,7 @@ class View:
 def parse(param_string):
     """Parse a string to get a command and arguments from it."""
     param = param_string.split("--")
-    command_name = translate.translate_commands(param[0].strip().lower())
+    command_name = TRANSLATION["command_names"][param[0].strip().lower()]
     param = [parameter.split() for parameter in param]
-    kwargs = {translate.translate_arguments(param[i][0].lower()): " ".join(param[i][1:]) for i in range(1, len(param))}
+    kwargs = {TRANSLATION["argument_names"][param[i][0].lower()]: " ".join(param[i][1:]) for i in range(1, len(param))}
     return command_name, kwargs
