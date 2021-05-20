@@ -8,7 +8,7 @@ def translate(text, translations):
     if text in translations:
         return translations[text]
     else:
-        return text
+        raise ValueError
 
 
 def translate_commands(text):
