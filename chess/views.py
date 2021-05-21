@@ -1,5 +1,5 @@
 """Implement a class that will manage interactions with the user"""
-from models.core import TRANSLATION
+from models.translate import TRANSLATION
 
 ASK_ARGUMENT = TRANSLATION["ask_argument"]
 FIX_ARGUMENT = TRANSLATION["fix_argument"]

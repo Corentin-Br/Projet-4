@@ -1,4 +1,4 @@
-"""Implement functions to translate strings according to a pre-existing dictionary"""
+"""Contain all the text required by other modules."""
 TRANSLATION = {
     "valid_types": [
         "coup rapide",

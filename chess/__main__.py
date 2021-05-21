@@ -1,6 +1,6 @@
 import controllers
 import views
-from models.core import TRANSLATION
+from models.translate import TRANSLATION
 
 WELCOME_TEXT = TRANSLATION["welcome"]
 ASK_TEXT = TRANSLATION["main_ask"]

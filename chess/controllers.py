@@ -3,12 +3,13 @@ import re
 from datetime import datetime
 
 from models import core, exceptions
+from models.translate import TRANSLATION
 
-VALIDATION_WORDS = core.TRANSLATION["yes"]
-REFUSAL_WORDS = core.TRANSLATION["no"]
-SENTENCES = core.TRANSLATION["controller"]
-HEADERS = core.TRANSLATION["headers"]
-VALID_TIME_CONTROLS = core.TRANSLATION["valid_types"]
+VALIDATION_WORDS = TRANSLATION["yes"]
+REFUSAL_WORDS = TRANSLATION["no"]
+SENTENCES = TRANSLATION["controller"]
+HEADERS = TRANSLATION["headers"]
+VALID_TIME_CONTROLS = TRANSLATION["valid_types"]
 
 
 def fix_input(function):
@@ -99,7 +100,7 @@ class Controller:
         """Sort according to key if key is an attribute of all elements of a list."""
         if key is not None:
             try:
-                key = core.TRANSLATION["argument_names"](key)
+                key = TRANSLATION["argument_names"](key)
                 elements.sort(key=lambda x: getattr(x, key), reverse=(key == "points"))
             except (AttributeError, ValueError):  # AttributeError deals with problem with the sort,
                 # ValueError with the translatiob

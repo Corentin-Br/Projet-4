@@ -3,9 +3,7 @@ from time import time
 from datetime import datetime
 from random import sample
 
-
-from . import pairing, exceptions, db, translate
-TRANSLATION = translate.TRANSLATION
+from . import pairing, exceptions, db
 
 
 class Tournament:
