@@ -153,6 +153,7 @@ Quitte la gestion de tournoi et retourne au menu principal.
 1. Installer flake8 avec la commande `$ python -m pip install flake8`
 
 En cas de difficultés, consulter https://flake8.pycqa.org/en/latest/index.html
+
 2. Installer flake8-html avec la commande `$ pip install flake8-html`
 
 En cas de difficultés, consulter https://pypi.org/project/flake8-html/
