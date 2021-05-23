@@ -443,14 +443,14 @@ class TournamentController(Controller):
 
     @fix_input
     def finish(self):
-        """Finish the tournament."""
+        """Finish the tournament and display the result."""
         if len(self.tournament.rounds) == self.tournament.max_round and self.tournament.rounds[-1].finished:
             result = self.tournament.result
             self.view.display(HEADERS["result"])
             for i, player in enumerate(result):
                 self.view.display(f"{i+1}) {player.to_display}")
             self.tournament.save()
-            self.exit()
+            return self.exit()
         else:
             self.view.display(SENTENCES["tournament_not_finished"])
             return

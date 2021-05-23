@@ -5,6 +5,7 @@ from models.translate import TRANSLATION
 WELCOME_TEXT = TRANSLATION["welcome"]
 ASK_TEXT = TRANSLATION["main_ask"]
 INVALID_COMMAND_ERROR = TRANSLATION["invalid_command"]
+INVALID_COMMAND_OR_ARGUMENT_ERROR = TRANSLATION["invalid_command_argument"]
 
 
 def main():
@@ -16,9 +17,13 @@ def main():
         try:
             command, kwargs = current_view.ask_command(ASK_TEXT)
         except KeyError:
-            current_view.display(INVALID_COMMAND_ERROR)
+            current_view.display(INVALID_COMMAND_OR_ARGUMENT_ERROR)
         else:
-            result = getattr(current_controller, command)(**kwargs)
+            try:
+                result = getattr(current_controller, command)(**kwargs)
+            except AttributeError:
+                current_view.display(INVALID_COMMAND_ERROR)
+
             if type(result) == controllers.TournamentController:
                 current_controller = result
             elif result == "exit":

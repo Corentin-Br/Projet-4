@@ -102,8 +102,12 @@ Affiche toutes les rondes déjà créées du tournoi.
 `afficher_matchs`
 Affiche tous les matchs de toutes les rondes déjà créées du tournoi.
 
+Les noms des joueurs sont affichés selon le format Blanc VS Noir.
+
 `afficher_tour_actuel`
 Affiche tous les matchs de la ronde actuelle.
+
+Les noms des joueurs sont affichés selon le format Blanc VS Noir.
 
 `ajouter_participant  --prénom --nom`
 Ajoute le membre avec ce nom et ce prénom en tant que participant au tournoi.
@@ -127,7 +131,7 @@ Lance le tournoi.
 Si le tournoi est déjà lancé ou s'il n'a pas assez de participants, l'action sera annulée.
 
 `tour_suivant`
-Crée la ronde suivante, et affiche les matchs de celle-ci.
+Crée la ronde suivante, et affiche les matchs de celle-ci, les noms des joueurs sont affichés selon le format Blanc VS Noir.
 
 S'il existe une ronde précédente et qu'elle n'est pas terminée, l'action sera annulée.
 
@@ -142,6 +146,11 @@ Si les scores de certains matchs n'ont pas été entrés, l'action sera annulée
 Affecte le résultat donné au match choisi et attribue les points aux joueurs. Les matchs sont numérotés à partir de 1 en partant du match affiché le plus haut lors de la création du tour. Utilisez `afficher_tour_actuel` pour obtenir les numéros des matchs explicitement en cas de doute.
 
 /!\ Une fois un résultat donné, il ne peut plus être changé.
+ 
+ `finir_tournoi`
+Finis le tournoi et affiche les résultats.
+ 
+Si toutes les rondes n'ont pas été jouées, l'action sera annulée.
 
 `exit`
 Quitte la gestion de tournoi et retourne au menu principal.

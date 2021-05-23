@@ -409,7 +409,7 @@ def unserialize_round(serialized, players):
 
 
 def unserialize_tournament(serialized):
-    """Create an instance of a tournament."""
+    """Create an instance of a tournament from a dictionary."""
     try:
         participants = [Member.get_member_from_id(participant) for participant in serialized["participants"]]
     except exceptions.NotInDatabaseError:

@@ -23,7 +23,7 @@ TRANSLATION = {
         "date": "date",
         "type_de_tournoi": "tournament_type",
         "prénom": "name",
-        "nom_tournoi": "name",
+        "nom_du_tournoi": "name",
         "genre": "gender",
         "lieu": "place",
         "nombre_rondes": "max_round",
@@ -101,7 +101,7 @@ TRANSLATION = {
     "controller": {
         "tournament_already_exists": "Un tournoi avec le même nom, la même date et le même lieu existe déjà dans la "
                                      "base de données. Le tournoi n'a pas été créé.",
-        "unknown_argument": lambda argument: f"Un argument non reconnu était présent, il a été ignoré: {argument}",
+        "unknown_argument": lambda argument: f"Un argument non requis était présent, il a été ignoré: {argument}",
         "no_member": "Il n'y a pas de membres à afficher!",
         "existing_members": lambda number: f"Il y a {number} personne(s) avec ce nom dans la base de données: \n",
         "player_number": "Indiquez le numéro du joueur que vous voulez choisir",
@@ -172,5 +172,8 @@ TRANSLATION = {
         "games_display": "nom de la partie   score",
         "result": "place   nom complet   points"
     },
-    "invalid_command": "La fonction n'est pas un appel valide.  Lisez le readme pour obtenir plus d'informations."
+    "invalid_command_argument": "La fonction n'est pas un appel valide, ou un des arguments n'existe pas.  "
+                                "Lisez le readme pour obtenir plus d'informations.",
+    "invalid_command": "La fonction n'est pas un appel valide."
+                       "Lisez le readme pour obtenir plus d'informations."
 }
