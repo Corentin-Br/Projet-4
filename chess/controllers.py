@@ -309,7 +309,7 @@ class TournamentController(Controller):
             for i in range(round_amount):
                 tournament_round = self.tournament.rounds[-(i+1)]
                 for j, game in enumerate(tournament_round.games):
-                    self.view.display(f"{i+1}) {game.to_display}")
+                    self.view.display(f"{j+1}) {game.to_display}")
                 self.view.display("")
 
     @fix_input
