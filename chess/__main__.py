@@ -23,7 +23,7 @@ def main():
                 result = getattr(current_controller, command)(**kwargs)
             except AttributeError:
                 current_view.display(INVALID_COMMAND_ERROR)
-
+                result = None
             if type(result) == controllers.TournamentController:
                 current_controller = result
             elif result == "exit":
