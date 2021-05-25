@@ -282,7 +282,7 @@ class TournamentController(Controller):
         if not rounds:
             self.view.display(SENTENCES["no_rounds"])
         else:
-            self.view.display(HEADERS["round_display"])
+            self.view.display(HEADERS["rounds_display"])
         for game_round in rounds:
             self.view.display(game_round.to_display)
         return
