@@ -104,7 +104,7 @@ class Tournament:
 
     def save(self):
         """Add or update a tournament in the database."""
-        db.tournament_tables.upsert(self.to_dict, ((db.QUERY.name == self.name) &
+        db.TOURNAMENT_TABLES.upsert(self.to_dict, ((db.QUERY.name == self.name) &
                                                    (db.QUERY.place == self.place) &
                                                    (db.QUERY.date == " ".join([date.strftime("%d/%m/%Y")
                                                                                for date in self.date]))))
@@ -112,7 +112,7 @@ class Tournament:
     @property
     def already_exist(self):
         """Return a boolean determining if the tournament already exists."""
-        return db.tournament_tables.count((db.QUERY.name == self.name) &
+        return db.TOURNAMENT_TABLES.count((db.QUERY.name == self.name) &
                                           (db.QUERY.place == self.place) &
                                           (db.QUERY.date == " ".join([date.strftime("%d/%m/%Y")
                                                                       for date in self.date]))) != 0
@@ -121,12 +121,12 @@ class Tournament:
     def get_tournament(cls, name: str):
         """Return all tournaments with a specific name."""
         return [unserialize_tournament(tournament) for tournament in
-                db.tournament_tables.search(db.QUERY.name == name.capitalize())]
+                db.TOURNAMENT_TABLES.search(db.QUERY.name == name.capitalize())]
 
     @classmethod
     def get_all_tournaments(cls):
         """Return all tournaments in the database."""
-        return [unserialize_tournament(tournament) for tournament in db.tournament_tables.all()]
+        return [unserialize_tournament(tournament) for tournament in db.TOURNAMENT_TABLES.all()]
 
     @property
     def to_display(self):
@@ -271,14 +271,14 @@ class Member:
 
     def save(self):
         """Add or update a member in the database."""
-        db.member_tables.upsert(self.to_dict, ((db.QUERY.surname == self.surname) &
+        db.MEMBER_TABLES.upsert(self.to_dict, ((db.QUERY.surname == self.surname) &
                                                (db.QUERY.name == self.name) &
                                                (db.QUERY.discriminator == self.discriminator)))
 
     @property
     def identifiant(self):
         """The unique identifiant in the database."""
-        result = db.member_tables.get((db.QUERY.surname == self.surname) &
+        result = db.MEMBER_TABLES.get((db.QUERY.surname == self.surname) &
                                       (db.QUERY.name == self.name) &
                                       (db.QUERY.discriminator == self.discriminator))
         return result.doc_id
@@ -296,25 +296,25 @@ class Member:
     @property
     def already_exist(self):
         """Return the number of members in the database that have the same name and surname."""
-        return db.member_tables.count((db.QUERY.surname == self.surname) &
+        return db.MEMBER_TABLES.count((db.QUERY.surname == self.surname) &
                                       (db.QUERY.name == self.name))
 
     @classmethod
     def get_member(cls, name: str, surname: str, discriminator=None):
         """Return all the members with a specific name and surname in the database."""
         if discriminator:
-            return [Member(**member) for member in db.member_tables.search((db.QUERY.name == name.capitalize()) &
+            return [Member(**member) for member in db.MEMBER_TABLES.search((db.QUERY.name == name.capitalize()) &
                                                                            (db.QUERY.surname == surname.upper()) &
                                                                            (db.QUERY.discriminator == discriminator))]
         else:
-            return [Member(**member) for member in db.member_tables.search((db.QUERY.name == name.capitalize()) &
+            return [Member(**member) for member in db.MEMBER_TABLES.search((db.QUERY.name == name.capitalize()) &
                                                                            (db.QUERY.surname == surname.upper()))]
 
     @classmethod
     def get_member_from_id(cls, identifiant):
         """Return a member from the identifiant in the database."""
-        if db.member_tables.contains(doc_id=identifiant):
-            member = db.member_tables.get(doc_id=identifiant)
+        if db.MEMBER_TABLES.contains(doc_id=identifiant):
+            member = db.MEMBER_TABLES.get(doc_id=identifiant)
         else:
             raise exceptions.NotInDatabaseError
         return Member(**member)
@@ -322,7 +322,7 @@ class Member:
     @classmethod
     def get_all_members(cls):
         """Return all the members in the database."""
-        return [Member(**member) for member in db.member_tables.all()]
+        return [Member(**member) for member in db.MEMBER_TABLES.all()]
 
 
 class Player:

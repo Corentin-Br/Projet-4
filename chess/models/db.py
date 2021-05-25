@@ -1,6 +1,7 @@
+"""Implement all operations on the database"""
 from tinydb import TinyDB, Query
 
-database = TinyDB("./db.json")
-tournament_tables = database.table("tournaments")
-member_tables = database.table("members")
+DATABASE = TinyDB("models/db.json")
+TOURNAMENT_TABLES = DATABASE.table("tournaments")
+MEMBER_TABLES = DATABASE.table("members")
 QUERY = Query()
