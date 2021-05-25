@@ -51,7 +51,6 @@ def pairing_fixing(player_list, current_pairing, number_of_matches_not_done):
     lowest scores may end up facing each other a lot.
     """
 
-    print("I have started fixing")
     players_to_pair = get_enough_players(player_list, current_pairing, number_of_matches_not_done)
     all_valid_pairings = get_all_valid_matchups(players_to_pair, number_of_matches_not_done)
     if len(all_valid_pairings) == 0:
