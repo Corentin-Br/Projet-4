@@ -186,7 +186,7 @@ class Round:
     @property
     def to_display(self):
         """A string that contains all relevant data of the round to be displayed."""
-        games = '\n'.join([game.name for game in self.games])
+        games = '\n'.join([game.to_display for game in self.games])
         return f"{self.name}    a commencé à {self.starting_time.strftime('%H:%M')}   " \
                f"a fini à {self.ending_time.strftime('%H:%M')}\n{games}"
 
@@ -233,7 +233,7 @@ class Game:
     @property
     def to_display(self):
         """A string that contains all relevant data of the game to be displayed."""
-        return "   ".join([self.name, self.score])
+        return f"{self.name}    {self.score}"
 
 
 class Member:
