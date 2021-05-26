@@ -100,7 +100,7 @@ class Controller:
         """Sort according to key if key is an attribute of all elements of a list."""
         if key is not None:
             try:
-                key = TRANSLATION["argument_names"][key]
+                key = TRANSLATION["argument_names"][key.lower()]
                 elements.sort(key=lambda x: getattr(x, key), reverse=(key == "points"))
             except (AttributeError, KeyError):  # AttributeError deals with problem with the sort,
                 # KeyError with the translatiob
