@@ -81,7 +81,8 @@ class Tournament:
     @property
     def result(self):
         """A list of participants sorted by score, to be used to display the result of the tournament."""
-        return sorted(self.players, key=lambda player: player.points, reverse=True)
+        players = sorted(self.players, key=lambda player: player.member.ranking)
+        return sorted(players, key=lambda player: player.points, reverse=True)
 
     @property
     def to_dict(self):
