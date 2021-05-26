@@ -76,7 +76,7 @@ class Controller:
                 if not number.isnumeric():
                     self.view.display(SENTENCES["not_a_number"])
                     return
-                elif int(number) not in range(len(possible_members)+1):
+                elif int(number) not in range(1, len(possible_members)+1):
                     self.view.display(SENTENCES["not_a_valid_number"])
                     return
                 else:
@@ -227,7 +227,7 @@ class GlobalController(Controller):
                 if not number.isnumeric():
                     self.view.display(SENTENCES["not_a_number"])
                     return
-                elif int(number) not in range(len(possible_tournaments)+1):
+                elif int(number) not in range(1, len(possible_tournaments)+1):
                     self.view.display(SENTENCES["not_a_valid_number"])
                     return
                 else:
