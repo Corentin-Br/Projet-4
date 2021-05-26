@@ -285,6 +285,7 @@ class TournamentController(Controller):
             self.view.display(HEADERS["rounds_display"])
         for game_round in rounds:
             self.view.display(game_round.to_display)
+            self.view.display("")
         return
 
     @fix_input
